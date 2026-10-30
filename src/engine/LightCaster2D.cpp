@@ -107,6 +107,11 @@ LightRayHit LightCaster2D::castRay(
             continue;
         }
 
+        // Se a célula não bloqueia luz (ex: cerca de arame farpado ou janela), a lanterna DDA atravessa!
+        if (!map.blocksLight(mapX, mapY)) {
+            continue;
+        }
+
         // Parede sólida encontrada: bloqueia a luz
         result.hit = true;
         result.dist = currentDist;

@@ -175,11 +175,8 @@ bool SpriteAtlas::loadFromFile(const std::string& filepath, bool removeDarkBg) {
             int diffG = std::abs(static_cast<int>(g) - bgRefG);
             int diffB = std::abs(static_cast<int>(b) - bgRefB);
 
-            // Limiar de luminância cromática (Chroma Threshold) para limpar o fundo escuro da IA
-            bool nearCornerBg = (diffR < 16 && diffG < 16 && diffB < 18 && r < 44 && g < 46 && b < 52);
-            bool absoluteDarkBg = (r < 22 && g < 24 && b < 28);
-
-            if (nearCornerBg || absoluteDarkBg) {
+            // Recorta qualquer cor de fundo uniforme (amostrada no canto) sem apagar as silhuetas negras
+            if (diffR < 18 && diffG < 18 && diffB < 18) {
                 a = 0;
             }
         }
@@ -209,6 +206,20 @@ void SpriteAtlas::drawSprite(
 ) const {
     if (!screenBuffer || m_pixels.empty() || dstW <= 0 || dstH <= 0 || src.w <= 0 || src.h <= 0) return;
 
+    // Se o Atlas foi carregado com resolução diferente de 2048x2048 e as coordenadas ultrapassam a dimensão física,
+    // normaliza dinamicamente as coordenadas do src para a resolução física real carregada!
+    SpriteRect actualSrc = src;
+    if (m_width > 0 && m_height > 0 && (m_width != 2048 || m_height != 2048)) {
+        if (src.x + src.w > m_width || src.y + src.h > m_height) {
+            float scaleX = static_cast<float>(m_width) / 2048.0f;
+            float scaleY = static_cast<float>(m_height) / 2048.0f;
+            actualSrc.x = static_cast<int>(std::round(src.x * scaleX));
+            actualSrc.y = static_cast<int>(std::round(src.y * scaleY));
+            actualSrc.w = std::max(1, static_cast<int>(std::round(src.w * scaleX)));
+            actualSrc.h = std::max(1, static_cast<int>(std::round(src.h * scaleY)));
+        }
+    }
+
     int startX = std::max(0, dstX);
     int startY = std::max(0, dstY);
     int endX   = std::min(screenW, dstX + dstW);
@@ -218,15 +229,15 @@ void SpriteAtlas::drawSprite(
     int lightFixed = static_cast<int>(std::clamp(lightFactor, 0.0f, 3.0f) * 256.0f);
 
     for (int sy = startY; sy < endY; ++sy) {
-        int srcY = src.y + ((sy - dstY) * src.h) / dstH;
+        int srcY = actualSrc.y + ((sy - dstY) * actualSrc.h) / dstH;
         if (srcY < 0 || srcY >= m_height) continue;
 
         const uint32_t* srcRow = &m_pixels[srcY * m_width];
         uint32_t* dstRow = &screenBuffer[sy * screenW];
 
         for (int sx = startX; sx < endX; ++sx) {
-            int relX = ((sx - dstX) * src.w) / dstW;
-            int srcX = flipH ? (src.x + src.w - 1 - relX) : (src.x + relX);
+            int relX = ((sx - dstX) * actualSrc.w) / dstW;
+            int srcX = flipH ? (actualSrc.x + actualSrc.w - 1 - relX) : (actualSrc.x + relX);
             if (srcX < 0 || srcX >= m_width) continue;
 
             uint32_t pixel = srcRow[srcX];
@@ -252,9 +263,33 @@ void SpriteAtlas::drawFullScreen(
     uint32_t* screenBuffer, int screenW, int screenH,
     float brightness
 ) const {
-    if (!screenBuffer || m_pixels.empty()) return;
-    SpriteRect fullRect = { 0, 0, m_width, m_height };
-    drawSprite(screenBuffer, screenW, screenH, fullRect, 0, 0, screenW, screenH, brightness, false);
+    if (!screenBuffer || m_pixels.empty() || screenW <= 0 || screenH <= 0 || m_width <= 0 || m_height <= 0) return;
+
+    int brightFixed = static_cast<int>(std::clamp(brightness, 0.0f, 3.0f) * 256.0f);
+
+    for (int dy = 0; dy < screenH; ++dy) {
+        int sy = (dy * m_height) / screenH;
+        if (sy < 0 || sy >= m_height) continue;
+        const uint32_t* srcRow = &m_pixels[sy * m_width];
+        uint32_t* dstRow = &screenBuffer[dy * screenW];
+
+        for (int dx = 0; dx < screenW; ++dx) {
+            int sx = (dx * m_width) / screenW;
+            if (sx < 0 || sx >= m_width) continue;
+            uint32_t c = srcRow[sx];
+
+            if (brightFixed != 256) {
+                int r = (((c >> 16) & 0xFF) * brightFixed) >> 8;
+                int g = (((c >> 8)  & 0xFF) * brightFixed) >> 8;
+                int b = ((c & 0xFF)         * brightFixed) >> 8;
+                r = std::min(255, r);
+                g = std::min(255, g);
+                b = std::min(255, b);
+                c = (static_cast<uint32_t>(r) << 16) | (static_cast<uint32_t>(g) << 8) | static_cast<uint32_t>(b);
+            }
+            dstRow[dx] = 0xFF000000u | (c & 0x00FFFFFFu);
+        }
+    }
 }
 
 uint32_t SpriteAtlas::sampleTileUV(const SpriteRect& tileRect, float u, float v) const {

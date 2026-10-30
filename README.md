@@ -129,7 +129,7 @@ cmake -B build -S .
 cmake --build build --config Release
 
 # 4. Execute
-./ZoneProtocol_v012.exe
+./ZoneProtocol_v013.exe
 ```
 
 ### Linux / macOS
@@ -153,10 +153,12 @@ cmake --build build -j$(nproc)
 | **F / Espaço**              | Interagir / Saquear Caixa Militar / Abrir e fechar portas |
 | **I / Tab**                 | Abrir/Fechar Maleta de Inventário Tático (6x4 + 2x2)      |
 | **R / Botão Direito**       | Girar item selecionado na Maleta 6x4                      |
+| **O / F10**                 | Abrir Menu de Opções de Resolução (720p / 1280x800 / 1080p)|
+| **- / + (ou PgDn / PgUp)**  | Alternar Resolução em tempo real                          |
 | **E**                       | Extrair no Ponto de Extração                              |
 | **B**                       | Alternar acesso rápido ao Bunker Subterrâneo              |
 | **F11**                     | Alternar Tela Cheia (*Fullscreen*)                        |
-| **ESC**                     | Fechar Maleta / Sair do Jogo                              |
+| **ESC**                     | Fechar Menu / Fechar Maleta / Sair do Jogo                |
 
 ---
 

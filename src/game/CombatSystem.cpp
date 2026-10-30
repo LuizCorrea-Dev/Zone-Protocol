@@ -1,5 +1,6 @@
 #include "CombatSystem.hpp"
 #include "../engine/Logger.hpp"
+#include "../engine/AudioSystem.hpp"
 #include <cmath>
 #include <random>
 #include <algorithm>
@@ -63,7 +64,7 @@ void CombatSystem::spawnMutantsForZone(const DayDoom::Game::ZoneMap& map, uint32
         m_mutants.push_back(m);
     }
 
-    // 2. Spawna Caixas de Loot Militar Saqueáveis (com Artefactos e Suprimentos)
+    // 2. Spawna Caixas de Loot Militar Saqueáveis (priorizando cantos de salas do ZoneMap Passo 4)
     const std::vector<ItemDef> lootTable = {
         { 10, "ISOTOPO ZARIA", ItemCategory::ARTIFACT, 1, 1, SynergyElement::RAD_GREEN,   0.0f, 0.30f, 1 },
         { 11, "NUCLEO SPARK",  ItemCategory::ARTIFACT, 1, 1, SynergyElement::ELEC_PURPLE, 0.0f, 0.25f, 1 },
@@ -73,8 +74,22 @@ void CombatSystem::spawnMutantsForZone(const DayDoom::Game::ZoneMap& map, uint32
         { 21, "ATADURA",       ItemCategory::MEDICAL,  1, 1, SynergyElement::NONE,       20.0f, 0.0f,  5 }
     };
 
+    // 2.1 Posiciona primeiro nos cantos protegidos das salas identificados no Passo 4 do ZoneMap
+    for (int y = 0; y < map.getHeight(); ++y) {
+        for (int x = 0; x < map.getWidth(); ++x) {
+            if (map.getPropType(x, y) == DayDoom::Game::MapPropType::LOOT_CHEST) {
+                LootCrate crate;
+                crate.pos = { static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f };
+                crate.opened = false;
+                crate.rewardItem = lootTable[rng() % lootTable.size()];
+                m_crates.push_back(crate);
+            }
+        }
+    }
+
+    // 2.2 Se houver poucas salas com cantos, preenche com caixas adicionais em pátios
     int crateAttempts = 0;
-    while (m_crates.size() < 14 && crateAttempts < 400) {
+    while (m_crates.size() < 12 && crateAttempts < 300) {
         crateAttempts++;
         float cx = 4.5f + static_cast<float>(rng() % (map.getWidth() - 9));
         float cy = 4.5f + static_cast<float>(rng() % (map.getHeight() - 9));
@@ -114,7 +129,8 @@ void CombatSystem::spawnMutantsForZone(const DayDoom::Game::ZoneMap& map, uint32
 void CombatSystem::fireWeapon(
     const DayDoom::Engine::Vec2& playerPos,
     const DayDoom::Engine::Vec2& aimDir,
-    const CombatModifiers& synergyMods
+    const CombatModifiers& synergyMods,
+    ZoneProtocol::Engine::AudioSystem* audioSystem
 ) {
     if (m_fireCooldown > 0.0f) return;
 
@@ -132,6 +148,18 @@ void CombatSystem::fireWeapon(
 
     m_projectiles.push_back(p);
 
+    // Sistema de Áudio da AK-47 Automática:
+    // Tiro 1 (inicial ou tiro único isolado): toca ak47_1tiro.wav (AK47_SINGLE) com eco
+    // Tiros subsequentes segurando a rajada: toca ak47_1tiro_da_rajada.wav (AK47_BURST) ritmo seco
+    if (audioSystem) {
+        if (m_burstShotsFired == 0) {
+            audioSystem->playSFX(ZoneProtocol::Engine::AudioTrack::AK47_SINGLE, 0.0f, 0.88f);
+        } else {
+            audioSystem->playSFX(ZoneProtocol::Engine::AudioTrack::AK47_BURST, 0.0f, 0.82f);
+        }
+    }
+    m_burstShotsFired++;
+
     // O barulho do tiro alerta todos os mutantes num raio de 14 metros!
     for (auto& m : m_mutants) {
         float dist = std::hypot(m.pos.x - playerPos.x, m.pos.y - playerPos.y);
@@ -140,6 +168,16 @@ void CombatSystem::fireWeapon(
             m.lastHeardTarget = playerPos;
         }
     }
+}
+
+void CombatSystem::notifyTriggerReleased(ZoneProtocol::Engine::AudioSystem* audioSystem) {
+    if (m_burstShotsFired >= 2) {
+        // A rajada de múltiplos disparos cessou: a última bala ressoa com a cauda de reverb do tiro completo!
+        if (audioSystem) {
+            audioSystem->playSFX(ZoneProtocol::Engine::AudioTrack::AK47_SINGLE, 0.0f, 0.88f);
+        }
+    }
+    m_burstShotsFired = 0;
 }
 
 bool CombatSystem::isNearClosedCrate(const DayDoom::Engine::Vec2& playerPos) const {
@@ -181,7 +219,8 @@ void CombatSystem::update(
     float dt,
     const DayDoom::Game::ZoneMap& map,
     DayDoom::Game::Player& player,
-    const CombatModifiers& synergyMods
+    const CombatModifiers& synergyMods,
+    ZoneProtocol::Engine::AudioSystem* audioSystem
 ) {
     (void)synergyMods;
     if (m_fireCooldown > 0.0f) m_fireCooldown -= dt;
@@ -191,6 +230,7 @@ void CombatSystem::update(
         [](const ElectricArcFX& a) { return a.timer <= 0.0f; }), m_arcs.end());
 
     DayDoom::Engine::Vec2 pPos = player.getCamera().pos;
+    DayDoom::Engine::Vec2 pDir = player.getCamera().dir;
 
     // 1. ATUALIZA PROJÉTEIS E COLISÃO DE BALAS
     for (auto& proj : m_projectiles) {
@@ -279,6 +319,7 @@ void CombatSystem::update(
         if (m.hitFlashTimer > 0.0f) m.hitFlashTimer -= dt;
         if (m.attackCooldown > 0.0f) m.attackCooldown -= dt;
         if (m.cryoSlowTimer > 0.0f) m.cryoSlowTimer -= dt;
+        if (m.screamCooldown > 0.0f) m.screamCooldown -= dt;
 
         // Dano contínuo de Radiação (Sinergia Verde)
         if (m.radBurnTimer > 0.0f) {
@@ -299,6 +340,36 @@ void CombatSystem::update(
             m.lastHeardTarget = pPos;
         }
 
+        // =========================================================================
+        // GRITO DO MONSTRO NO ESCURO (referencia/music/grito do mostros.wav)
+        // Quando o mutante está próximo (dist < 12.0f) fora do cone de luz direta
+        // =========================================================================
+        if (audioSystem && distToPlayer < 12.0f && m.screamCooldown <= 0.0f) {
+            float relX = m.pos.x - pPos.x;
+            float relY = m.pos.y - pPos.y;
+            float dotFront = (distToPlayer > 0.001f) ? ((relX / distToPlayer) * pDir.x + (relY / distToPlayer) * pDir.y) : 1.0f;
+            bool isInDirectFlashlight = (dotFront > 0.40f && distToPlayer < 10.0f && canSeePlayer);
+
+            // Se estiver no escuro ou penumbra e ativo/perseguindo
+            if (!isInDirectFlashlight && (m.state != AIState::IDLE || distToPlayer < 6.5f)) {
+                // Panning estéreo 360° (-1.0 à Esquerda, +1.0 à Direita relativo à mira do jogador)
+                float perpDot = (relX * (-pDir.y) + relY * pDir.x) / distToPlayer;
+                float pan = std::clamp(perpDot, -1.0f, 1.0f);
+                float volume = std::clamp(1.0f - (distToPlayer / 12.0f), 0.20f, 1.0f);
+
+                audioSystem->playSFX(ZoneProtocol::Engine::AudioTrack::MONSTER_SCREAM, pan, volume);
+                m.screamCooldown = 7.0f + static_cast<float>(m.id % 5); // Intervalo tenso entre gritos
+            }
+        }
+
+        if (m.attackCooldown > 0.0f) {
+            m.attackCooldown -= dt;
+        }
+
+        if (m.attackAnimTimer > 0.0f) {
+            m.attackAnimTimer = std::max(0.0f, m.attackAnimTimer - dt);
+        }
+
         if (m.state != AIState::IDLE) {
             float dx = m.lastHeardTarget.x - m.pos.x;
             float dy = m.lastHeardTarget.y - m.pos.y;
@@ -309,17 +380,22 @@ void CombatSystem::update(
                 float vx = (dx / d) * moveSpeed * dt;
                 float vy = (dy / d) * moveSpeed * dt;
                 m.vel = { dx / d, dy / d };
+                m.animTimer += dt;
 
                 if (map.isWalkable(m.pos.x + vx, m.pos.y, m.radius)) m.pos.x += vx;
                 if (map.isWalkable(m.pos.x, m.pos.y + vy, m.radius)) m.pos.y += vy;
             } else if (!canSeePlayer) {
                 m.state = AIState::IDLE;
+                m.vel = { 0.0f, 0.0f };
             }
+        } else {
+            m.vel = { 0.0f, 0.0f };
         }
 
         // Ataque Corpo-a-Corpo se encostar no jogador
         if (distToPlayer < (m.radius + 0.35f) && m.attackCooldown <= 0.0f) {
             m.attackCooldown = 1.1f;
+            m.attackAnimTimer = 0.35f; // Ativa animação de bote/ataque pesado
             float dmg = (m.type == MutantType::BRUTE_FLESH) ? 22.0f : 10.0f;
             player.takeDamage(dmg);
             ZoneProtocol::Engine::Logger::info(
@@ -357,7 +433,10 @@ void CombatSystem::render(
     const DayDoom::Game::Player& player,
     const Engine::SpriteAtlas& entityAtlas,
     const Engine::SpriteAtlas* objectsAtlas,
-    float tileSize
+    float tileSize,
+    const Engine::SpriteAtlas* crawlerAnimAtlas,
+    const Engine::SpriteAtlas* bruteAnimAtlas,
+    const Engine::SpriteAtlas* shadowAtlas
 ) const {
     float pX = player.getCamera().pos.x;
     float pY = player.getCamera().pos.y;
@@ -406,39 +485,117 @@ void CombatSystem::render(
         bool inLightCone = (dist < 10.5f && dot > 0.40f && hasLineOfSight(map, {pX, pY}, m.pos));
         bool inClosePeriphery = (dist < 2.2f && hasLineOfSight(map, {pX, pY}, m.pos));
 
-        if ((inLightCone || inClosePeriphery) && entityAtlas.isLoaded()) {
+        if ((inLightCone || inClosePeriphery)) {
             Engine::SpriteRect rect;
+            const Engine::SpriteAtlas* targetAtlas = &entityAtlas;
+
+            bool isMoving = (std::hypot(m.vel.x, m.vel.y) > 0.05f);
+            int bobY = 0;
+            bool flipH = false;
+
+            int baseSize = (m.type == MutantType::BRUTE_FLESH) ? static_cast<int>(tileSize * 1.45f) : static_cast<int>(tileSize * 1.15f);
+            int dstW = baseSize;
+            int dstH = baseSize;
+
             if (m.type == MutantType::CRAWLER_PALE) {
-                if (std::abs(m.vel.y) > std::abs(m.vel.x)) {
-                    rect = (m.vel.y < 0.0f) ? Engine::AtlasCoords::CRAWLER_BACK : Engine::AtlasCoords::CRAWLER_FRONT;
+                if (crawlerAnimAtlas && crawlerAnimAtlas->isLoaded()) {
+                    targetAtlas = crawlerAnimAtlas;
+                    int cellW = 341;
+                    int animFrame = isMoving ? (static_cast<int>(m.animTimer / 0.12f) % 3) : 0;
+
+                    if (std::abs(m.vel.x) > std::abs(m.vel.y)) {
+                        // Perfil Horizontal Leste / Oeste (Band 2: Y=580..790, zero corte)
+                        int rectY = 580;
+                        int rectH = 210;
+                        int col = animFrame;
+                        rect = { col * cellW, rectY, cellW, rectH };
+                        flipH = (m.vel.x < 0.0f); // Espelha horizontalmente para olhar a Oeste
+                        dstW = baseSize;
+                        dstH = static_cast<int>(baseSize * (210.0f / 341.0f));
+                    } else {
+                        // Perfil Vertical Norte / Sul (Band 0: Y=20..310, zero corte)
+                        int rectY = 20;
+                        int rectH = 290;
+                        int col = (m.vel.y >= 0.0f ? 0 : 3) + animFrame;
+                        rect = { col * cellW, rectY, cellW, rectH };
+                        flipH = false;
+                        dstW = baseSize;
+                        dstH = static_cast<int>(baseSize * (290.0f / 341.0f));
+                    }
+                    if (isMoving && animFrame == 1) bobY = -2;
                 } else {
-                    rect = (m.vel.x < 0.0f) ? Engine::AtlasCoords::CRAWLER_LEFT : Engine::AtlasCoords::CRAWLER_RIGHT;
+                    targetAtlas = &entityAtlas;
+                    if (std::abs(m.vel.x) > std::abs(m.vel.y)) {
+                        rect = (m.vel.x > 0.0f) ? Engine::AtlasCoords::CRAWLER_RIGHT : Engine::AtlasCoords::CRAWLER_LEFT;
+                    } else {
+                        rect = (m.vel.y > 0.0f) ? Engine::AtlasCoords::CRAWLER_FRONT : Engine::AtlasCoords::CRAWLER_BACK;
+                    }
                 }
             } else {
-                if (std::abs(m.vel.y) > std::abs(m.vel.x)) {
-                    rect = (m.vel.y < 0.0f) ? Engine::AtlasCoords::BRUTE_BACK : Engine::AtlasCoords::BRUTE_FRONT;
+                // BRUTE_FLESH
+                if (bruteAnimAtlas && bruteAnimAtlas->isLoaded()) {
+                    targetAtlas = bruteAnimAtlas;
+                    int cellW = 512;
+                    int animFrame = isMoving ? (static_cast<int>(m.animTimer / 0.16f) % 2) : 0;
+
+                    if (m.attackAnimTimer > 0.0f) {
+                        // Pancada corpo-a-corpo (Band 3: Y=1010..1565)
+                        int rectY = 1010;
+                        int rectH = 555;
+                        int col = static_cast<int>(m.animTimer / 0.10f) % 4;
+                        rect = { col * cellW, rectY, cellW, rectH };
+                        flipH = (m.vel.x < 0.0f);
+                        dstW = baseSize;
+                        dstH = static_cast<int>(baseSize * (555.0f / 512.0f));
+                    } else if (std::abs(m.vel.x) > std::abs(m.vel.y)) {
+                        // Horizontal limpo Leste / Oeste (Band 1: Y=400..690)
+                        int rectY = 400;
+                        int rectH = 290;
+                        int col = animFrame;
+                        rect = { col * cellW, rectY, cellW, rectH };
+                        flipH = (m.vel.x < 0.0f);
+                        dstW = baseSize;
+                        dstH = static_cast<int>(baseSize * (290.0f / 512.0f));
+                    } else {
+                        // Vertical limpo Norte / Sul (Band 0: Y=50..370)
+                        int rectY = 50;
+                        int rectH = 320;
+                        int col = (m.vel.y >= 0.0f ? 0 : 2) + animFrame;
+                        rect = { col * cellW, rectY, cellW, rectH };
+                        flipH = false;
+                        dstW = baseSize;
+                        dstH = static_cast<int>(baseSize * (320.0f / 512.0f));
+                    }
+                    if (isMoving && animFrame == 1) bobY = -2;
                 } else {
-                    rect = (m.vel.x < 0.0f) ? Engine::AtlasCoords::BRUTE_LEFT : Engine::AtlasCoords::BRUTE_RIGHT;
+                    targetAtlas = &entityAtlas;
+                    if (std::abs(m.vel.x) > std::abs(m.vel.y)) {
+                        rect = (m.vel.x > 0.0f) ? Engine::AtlasCoords::BRUTE_RIGHT : Engine::AtlasCoords::BRUTE_LEFT;
+                    } else {
+                        rect = (m.vel.y > 0.0f) ? Engine::AtlasCoords::BRUTE_FRONT : Engine::AtlasCoords::BRUTE_BACK;
+                    }
                 }
             }
 
-            int spriteSize = (m.type == MutantType::BRUTE_FLESH) ? static_cast<int>(tileSize * 1.45f) : static_cast<int>(tileSize * 1.15f);
-            float light = (m.hitFlashTimer > 0.0f) ? 2.2f : (inLightCone ? std::clamp(1.3f - dist * 0.07f, 0.45f, 1.25f) : 0.45f);
+            if (targetAtlas && targetAtlas->isLoaded()) {
+                float light = (m.hitFlashTimer > 0.0f) ? 2.2f : (inLightCone ? std::clamp(1.3f - dist * 0.07f, 0.45f, 1.25f) : 0.45f);
 
-            entityAtlas.drawSprite(
-                screenBuffer, screenW, screenH,
-                rect,
-                screenX - spriteSize / 2, screenY - spriteSize / 2,
-                spriteSize, spriteSize,
-                light
-            );
+                targetAtlas->drawSprite(
+                    screenBuffer, screenW, screenH,
+                    rect,
+                    screenX - dstW / 2, screenY - dstH / 2 + bobY,
+                    dstW, dstH,
+                    light,
+                    flipH
+                );
+            }
 
             // Barra de HP tática acima do mutante ferido
             if (m.hp < m.maxHp) {
                 int barW = static_cast<int>(tileSize * 0.75f);
                 int barH = (screenW >= 1000) ? 4 : 2;
                 int bx = screenX - barW / 2;
-                int by = screenY - spriteSize / 2 - 6;
+                int by = screenY - dstH / 2 - 6;
                 int fillW = static_cast<int>((m.hp / m.maxHp) * barW);
                 uint32_t barCol = (m.radBurnTimer > 0.0f) ? DayDoom::Engine::makeColor(80, 255, 100) : DayDoom::Engine::makeColor(255, 55, 45);
                 for (int py = by; py < by + barH; ++py) {
@@ -451,17 +608,47 @@ void CombatSystem::render(
             }
         }
         else if (dist < 13.5f) {
-            // FORA DO CONE DE LUZ (NO ESCURO): Desenha apenas os 2 olhos vermelhos brilhantes!
-            uint32_t eyeColor = DayDoom::Engine::makeColor(255, 30, 30);
-            int eyeSpread = (screenW >= 1000) ? 4 : 2;
-            int eyeRadius = (screenW >= 1000) ? 2 : 1;
-            for (int ox : {-eyeSpread, eyeSpread}) {
-                for (int oy = -eyeRadius; oy <= eyeRadius; ++oy) {
-                    for (int rx = -eyeRadius; rx <= eyeRadius; ++rx) {
-                        int ex = screenX + ox + rx;
-                        int ey = screenY - 6 + oy;
-                        if (ex >= 0 && ex < screenW && ey >= 0 && ey < screenH) {
-                            screenBuffer[ey * screenW + ex] = eyeColor;
+            // FORA DO CONE DE LUZ (NO ESCURO): Desenha a silhueta negra animada com olhos vermelhos!
+            if (shadowAtlas && shadowAtlas->isLoaded()) {
+                int cellW = shadowAtlas->getWidth() / 4;
+                int cellH = shadowAtlas->getHeight() / 6;
+
+                // Escolhe qual das 3 silhuetas usar com base no ID do mutante (0, 1 ou 2)
+                int shadowVariant = m.id % 3;
+                bool movingRight  = (m.vel.x >= 0.0f);
+
+                // Linha par = Esquerda | Linha ímpar = Direita
+                int row = (shadowVariant * 2) + (movingRight ? 1 : 0);
+
+                // Se estiver a andar, avança pelos 4 frames (Colunas 0, 1, 2, 3); se parado, fica na Coluna 0
+                bool isMoving = (m.state != AIState::IDLE);
+                int col = isMoving ? (static_cast<int>(m.animTimer / 0.14f) % 4) : 0;
+
+                Engine::SpriteRect shadowRect = { col * cellW, row * cellH, cellW, cellH };
+                int shadowSize = static_cast<int>(tileSize * 1.35f);
+
+                // lightFactor = 1.0f mantém o preto profundo da silhueta e os olhos vermelhos acesos
+                shadowAtlas->drawSprite(
+                    screenBuffer, screenW, screenH,
+                    shadowRect,
+                    screenX - shadowSize / 2,
+                    screenY - shadowSize / 2,
+                    shadowSize, shadowSize,
+                    1.0f
+                );
+            } else {
+                // Fallback: 2 olhos vermelhos brilhantes
+                uint32_t eyeColor = DayDoom::Engine::makeColor(255, 30, 30);
+                int eyeSpread = (screenW >= 1000) ? 4 : 2;
+                int eyeRadius = (screenW >= 1000) ? 2 : 1;
+                for (int ox : {-eyeSpread, eyeSpread}) {
+                    for (int oy = -eyeRadius; oy <= eyeRadius; ++oy) {
+                        for (int rx = -eyeRadius; rx <= eyeRadius; ++rx) {
+                            int ex = screenX + ox + rx;
+                            int ey = screenY - 6 + oy;
+                            if (ex >= 0 && ex < screenW && ey >= 0 && ey < screenH) {
+                                screenBuffer[ey * screenW + ex] = eyeColor;
+                            }
                         }
                     }
                 }

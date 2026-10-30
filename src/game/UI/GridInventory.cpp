@@ -7,58 +7,80 @@
 
 namespace ZoneProtocol::Game {
 
-static uint16_t getInvGlyph(char c) {
-    switch (c) {
-        case '0': return 0b111110011001111;
-        case '1': return 0b010010010010010;
-        case '2': return 0b111001111100111;
-        case '3': return 0b111001011001111;
-        case '4': return 0b101101111001001;
-        case '5': return 0b111100111001111;
-        case '6': return 0b111100111101111;
-        case '7': return 0b111001001010010;
-        case '8': return 0b111101111101111;
-        case '9': return 0b111101111001111;
-        case ':': return 0b000010000010000;
-        case '+': return 0b000010111010000;
-        case '%': return 0b101001010100101;
-        case '.': return 0b000000000000010;
-        case '/': return 0b001001010100100;
-        case '(': return 0b001010010010001;
-        case ')': return 0b100010010010100;
-        case 'A': return 0b010101111101101;
-        case 'B': return 0b110101110101110;
-        case 'C': return 0b011100100100011;
-        case 'D': return 0b110101101101110;
-        case 'E': return 0b111100110100111;
-        case 'F': return 0b111100110100100;
-        case 'G': return 0b011100101101011;
-        case 'H': return 0b101101111101101;
-        case 'I': return 0b111010010010111;
-        case 'J': return 0b001001001101010;
-        case 'K': return 0b101101110101101;
-        case 'L': return 0b100100100100111;
-        case 'M': return 0b101111101101101;
-        case 'N': return 0b101111101101101;
-        case 'O': return 0b111101101101111;
-        case 'P': return 0b111101111100100;
-        case 'Q': return 0b011101101011001;
-        case 'R': return 0b110101110101101;
-        case 'S': return 0b011100010001110;
-        case 'T': return 0b111010010010010;
-        case 'U': return 0b101101101101111;
-        case 'V': return 0b101101101010010;
-        case 'W': return 0b101101101111101;
-        case 'X': return 0b101101010101101;
-        case 'Y': return 0b101101010010010;
-        case 'Z': return 0b111001010100111;
-        case '[': return 0b011010010010011;
-        case ']': return 0b110010010010110;
-        case '-': return 0b000000111000000;
-        case ' ': return 0;
-        default:  return 0b111101101101111;
-    }
-}
+static const uint8_t INV_GLYPH_5X7[128][7] = {
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // 32 ' '
+    {0x04, 0x04, 0x04, 0x04, 0x00, 0x04, 0x00}, // 33 '!'
+    {0x0A, 0x0A, 0x0A, 0x00, 0x00, 0x00, 0x00}, // 34 '"'
+    {0x0A, 0x1F, 0x0A, 0x0A, 0x1F, 0x0A, 0x00}, // 35 '#'
+    {0x04, 0x0F, 0x14, 0x0E, 0x05, 0x1E, 0x04}, // 36 '$'
+    {0x18, 0x19, 0x02, 0x04, 0x08, 0x13, 0x03}, // 37 '%'
+    {0x08, 0x14, 0x14, 0x08, 0x15, 0x12, 0x0D}, // 38 '&'
+    {0x04, 0x04, 0x02, 0x00, 0x00, 0x00, 0x00}, // 39 '\''
+    {0x02, 0x04, 0x08, 0x08, 0x08, 0x04, 0x02}, // 40 '('
+    {0x08, 0x04, 0x02, 0x02, 0x02, 0x04, 0x08}, // 41 ')'
+    {0x00, 0x04, 0x15, 0x0E, 0x15, 0x04, 0x00}, // 42 '*'
+    {0x00, 0x04, 0x04, 0x1F, 0x04, 0x04, 0x00}, // 43 '+'
+    {0x00, 0x00, 0x00, 0x00, 0x06, 0x06, 0x04}, // 44 ','
+    {0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00}, // 45 '-'
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x06}, // 46 '.'
+    {0x01, 0x02, 0x04, 0x08, 0x10, 0x00, 0x00}, // 47 '/'
+    {0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E}, // 48 '0'
+    {0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E}, // 49 '1'
+    {0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F}, // 50 '2'
+    {0x1F, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0E}, // 51 '3'
+    {0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02}, // 52 '4'
+    {0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E}, // 53 '5'
+    {0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E}, // 54 '6'
+    {0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08}, // 55 '7'
+    {0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E}, // 56 '8'
+    {0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C}, // 57 '9'
+    {0x00, 0x06, 0x06, 0x00, 0x06, 0x06, 0x00}, // 58 ':'
+    {0x00, 0x06, 0x06, 0x00, 0x06, 0x06, 0x04}, // 59 ';'
+    {0x02, 0x04, 0x08, 0x10, 0x08, 0x04, 0x02}, // 60 '<'
+    {0x00, 0x1F, 0x00, 0x1F, 0x00, 0x00, 0x00}, // 61 '='
+    {0x08, 0x04, 0x02, 0x01, 0x02, 0x04, 0x08}, // 62 '>'
+    {0x0E, 0x11, 0x01, 0x02, 0x04, 0x00, 0x04}, // 63 '?'
+    {0x0E, 0x11, 0x01, 0x0D, 0x15, 0x15, 0x0E}, // 64 '@'
+    {0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}, // 65 'A'
+    {0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E}, // 66 'B'
+    {0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E}, // 67 'C'
+    {0x1C, 0x12, 0x11, 0x11, 0x11, 0x12, 0x1C}, // 68 'D'
+    {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F}, // 69 'E'
+    {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10}, // 70 'F'
+    {0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0F}, // 71 'G'
+    {0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}, // 72 'H'
+    {0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E}, // 73 'I'
+    {0x07, 0x02, 0x02, 0x02, 0x02, 0x12, 0x0C}, // 74 'J'
+    {0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11}, // 75 'K'
+    {0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F}, // 76 'L'
+    {0x11, 0x1B, 0x15, 0x15, 0x11, 0x11, 0x11}, // 77 'M'
+    {0x11, 0x11, 0x19, 0x15, 0x13, 0x11, 0x11}, // 78 'N'
+    {0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}, // 79 'O'
+    {0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10}, // 80 'P'
+    {0x0E, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0D}, // 81 'Q'
+    {0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11}, // 82 'R'
+    {0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E}, // 83 'S'
+    {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}, // 84 'T'
+    {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}, // 85 'U'
+    {0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04}, // 86 'V'
+    {0x11, 0x11, 0x11, 0x15, 0x15, 0x15, 0x0A}, // 87 'W'
+    {0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11}, // 88 'X'
+    {0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04}, // 89 'Y'
+    {0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F}, // 90 'Z'
+    {0x0E, 0x08, 0x08, 0x08, 0x08, 0x08, 0x0E}, // 91 '['
+    {0x10, 0x08, 0x04, 0x02, 0x01, 0x00, 0x00}, // 92 '\\'
+    {0x0E, 0x02, 0x02, 0x02, 0x02, 0x02, 0x0E}, // 93 ']'
+    {0x04, 0x0A, 0x11, 0x00, 0x00, 0x00, 0x00}, // 94 '^'
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F}  // 95 '_'
+};
 
 GridInventory::GridInventory() {
     rebuildGridArrays();
@@ -70,25 +92,25 @@ void GridInventory::setupInitialLoadout() {
     m_nextInstanceId = 1;
     rebuildGridArrays();
 
-    // 1. Fuzil AK-74M (ocupa 3x2 slots na posição [0,0])
-    ItemDef ak74 = { 1, "AK-74M", ItemCategory::WEAPON, 3, 2, SynergyElement::NONE, 25.0f, 0.0f, 1 };
+    // 1. Fuzil AK-74M (ocupa exatamente 4x2 slots na posição [0,0])
+    ItemDef ak74 = { 1, "AK-74M", ItemCategory::WEAPON, 4, 2, SynergyElement::NONE, 25.0f, 0.0f, 1 };
     addItem(ak74, 0, 0, 1, false, false);
 
-    // 2. Artefacto Radioativo (1x1) na posição [3,0] (colado à direita da AK-74!)
+    // 2. Artefato Radioativo (1x1) na posição [4,0] (colado à direita da AK-74!)
     ItemDef radOrb = { 10, "ISOTOPO ZARIA", ItemCategory::ARTIFACT, 1, 1, SynergyElement::RAD_GREEN, 0.0f, 0.30f, 1 };
-    addItem(radOrb, 3, 0, 1, false, false);
+    addItem(radOrb, 4, 0, 1, false, false);
 
-    // 3. Artefacto Elétrico (1x1) na posição [3,1] (colado à AK-74 E ao Isotopo Zaria -> Ressonância!)
-    ItemDef elecOrb = { 11, "NUCLEO SPARK", ItemCategory::ARTIFACT, 1, 1, SynergyElement::ELEC_PURPLE, 0.0f, 0.25f, 1 };
-    addItem(elecOrb, 3, 1, 1, false, false);
-
-    // 4. Artefacto Criogénico (1x1) na posição [4,0] (colado ao Isotopo Zaria)
+    // 3. Artefato Criogênico (1x1) na posição [5,0] (colado ao Isotopo Zaria)
     ItemDef cryoOrb = { 12, "CRISTAL CRIO", ItemCategory::ARTIFACT, 1, 1, SynergyElement::CRYO_BLUE, 0.0f, 0.20f, 1 };
-    addItem(cryoOrb, 4, 0, 1, false, false);
+    addItem(cryoOrb, 5, 0, 1, false, false);
 
-    // 5. Kit Médico Branco (2x1) na posição [4,1] (conectado aos artefactos!)
-    ItemDef medkit = { 20, "KIT MEDICO", ItemCategory::MEDICAL, 2, 1, SynergyElement::NONE, 45.0f, 0.0f, 2 };
-    addItem(medkit, 4, 1, 1, false, false);
+    // 4. Artefato Elétrico (1x1) na posição [4,1] (colado à AK-74 E ao Isotopo Zaria -> Ressonância!)
+    ItemDef elecOrb = { 11, "NUCLEO SPARK", ItemCategory::ARTIFACT, 1, 1, SynergyElement::ELEC_PURPLE, 0.0f, 0.25f, 1 };
+    addItem(elecOrb, 4, 1, 1, false, false);
+
+    // 5. Kit Médico Branco (1x1) na posição [5,1] (conectado aos artefatos!)
+    ItemDef medkit = { 20, "KIT MEDICO", ItemCategory::MEDICAL, 1, 1, SynergyElement::NONE, 45.0f, 0.0f, 1 };
+    addItem(medkit, 5, 1, 1, false, false);
 
     // 6. Caixa de Munição 5.45mm (1x1) na posição [0,2]
     ItemDef ammoBox = { 30, "5.45MM X30", ItemCategory::AMMO, 1, 1, SynergyElement::NONE, 30.0f, 0.0f, 60 };
@@ -102,9 +124,9 @@ void GridInventory::setupInitialLoadout() {
     ItemDef ration = { 40, "RACAO URSS", ItemCategory::FOOD, 1, 1, SynergyElement::NONE, 35.0f, 0.0f, 3 };
     addItem(ration, 2, 2, 1, false, false);
 
-    // 9. Artefacto raro guardado no Safe Pocket 2x2 blindado (salvo mesmo se morrer!)
+    // 9. Artefato raro / Orbe guardado no inventário (1x1) na posição [6,1]
     ItemDef safeArt = { 13, "ORBE COMPASSO", ItemCategory::ARTIFACT, 1, 1, SynergyElement::RAD_GREEN, 0.0f, 0.35f, 1 };
-    addItem(safeArt, 0, 0, 1, false, true);
+    addItem(safeArt, 6, 1, 1, false, false);
 
     char synBuf[160];
     std::snprintf(synBuf, sizeof(synBuf),
@@ -371,6 +393,43 @@ void GridInventory::rotateSelected() {
     }
 }
 
+namespace {
+
+struct BriefcaseLayout {
+    int chassisW;
+    int chassisH;
+    int panelX;
+    int panelY;
+    int gridStartX;
+    int gridStartY;
+    int cellSize;
+};
+
+BriefcaseLayout getBriefcaseLayout(int screenW, int screenH) {
+    const int scale = (screenW >= 1600) ? 2 : 1;
+    // Tamanho quadrado exato do slot na tela
+    int cellSize = (screenW * 56) / 1280;
+    if (cellSize < 36) cellSize = 36;
+
+    // A textura UI_BRIEFCASE_CHASSIS tem 1188x920.
+    // A grade 8x4 na textura mede 1040x520 (cada célula mede 130x130 px exatos).
+    // X inicial da grade na textura = 68 px, Y inicial = 192 px.
+    int chassisW = static_cast<int>(std::round(cellSize * (1188.0 / 130.0)));
+    int chassisH = static_cast<int>(std::round(cellSize * (920.0 / 130.0)));
+
+    int panelX = (screenW - chassisW) / 2;
+    // Desloca ligeiramente para cima para acomodar o rodapé de sinergias fora da maleta
+    int panelY = (screenH - chassisH) / 2 - 16 * scale;
+    if (panelY < 24 * scale) panelY = 24 * scale;
+
+    int gridStartX = panelX + static_cast<int>(std::round(chassisW * (68.0 / 1188.0)));
+    int gridStartY = panelY + static_cast<int>(std::round(chassisH * (192.0 / 920.0)));
+
+    return { chassisW, chassisH, panelX, panelY, gridStartX, gridStartY, cellSize };
+}
+
+} // namespace
+
 void GridInventory::handleMouseClick(int mouseX, int mouseY, int screenW, int screenH, bool rightClick) {
     if (!m_isOpen) return;
 
@@ -379,30 +438,14 @@ void GridInventory::handleMouseClick(int mouseX, int mouseY, int screenW, int sc
         return;
     }
 
-    const int scale = (screenW >= 1000) ? 2 : 1;
-    const int SLOT_SIZE = 28 * scale;
-    const int SLOT_GAP  = 2 * scale;
+    auto layout = getBriefcaseLayout(screenW, screenH);
 
-    int mainGridW = BRIEFCASE_COLS * SLOT_SIZE + (BRIEFCASE_COLS - 1) * SLOT_GAP;
-    int safeGridW = SAFE_POCKET_COLS * SLOT_SIZE + (SAFE_POCKET_COLS - 1) * SLOT_GAP;
-    int totalW = mainGridW + 32 * scale + safeGridW + 32 * scale;
-    int panelH = (BRIEFCASE_ROWS * SLOT_SIZE + (BRIEFCASE_ROWS - 1) * SLOT_GAP) + 74 * scale;
-
-    int panelX = (screenW - totalW) / 2;
-    int panelY = (screenH - panelH) / 2;
-
-    int mainStartX = panelX + 16 * scale;
-    int mainStartY = panelY + 34 * scale;
-
-    int safeStartX = mainStartX + mainGridW + 24 * scale;
-    int safeStartY = mainStartY + SLOT_SIZE;
-
-    // Verifica clique na grade principal 6x4
+    // Verifica clique na grade principal 8x4 perfeitamente alinhada aos quadrados da arte da maleta
     for (int r = 0; r < BRIEFCASE_ROWS; ++r) {
         for (int c = 0; c < BRIEFCASE_COLS; ++c) {
-            int sx = mainStartX + c * (SLOT_SIZE + SLOT_GAP);
-            int sy = mainStartY + r * (SLOT_SIZE + SLOT_GAP);
-            if (mouseX >= sx && mouseX < sx + SLOT_SIZE && mouseY >= sy && mouseY < sy + SLOT_SIZE) {
+            int sx = layout.gridStartX + c * layout.cellSize;
+            int sy = layout.gridStartY + r * layout.cellSize;
+            if (mouseX >= sx && mouseX < sx + layout.cellSize && mouseY >= sy && mouseY < sy + layout.cellSize) {
                 if (m_selectedInstanceId == -1) {
                     const PlacedItem* clicked = getItemAt(c, r, false);
                     if (clicked) {
@@ -414,33 +457,6 @@ void GridInventory::handleMouseClick(int mouseX, int mouseY, int screenW, int sc
                         m_selectedInstanceId = -1;
                     } else {
                         const PlacedItem* other = getItemAt(c, r, false);
-                        if (other && other->instanceId == m_selectedInstanceId) {
-                            m_selectedInstanceId = -1;
-                        }
-                    }
-                }
-                return;
-            }
-        }
-    }
-
-    // Verifica clique no Safe Pocket 2x2
-    for (int r = 0; r < SAFE_POCKET_ROWS; ++r) {
-        for (int c = 0; c < SAFE_POCKET_COLS; ++c) {
-            int sx = safeStartX + c * (SLOT_SIZE + SLOT_GAP);
-            int sy = safeStartY + r * (SLOT_SIZE + SLOT_GAP);
-            if (mouseX >= sx && mouseX < sx + SLOT_SIZE && mouseY >= sy && mouseY < sy + SLOT_SIZE) {
-                if (m_selectedInstanceId == -1) {
-                    const PlacedItem* clicked = getItemAt(c, r, true);
-                    if (clicked) {
-                        m_selectedInstanceId = clicked->instanceId;
-                        m_selectedPreviewRotated = clicked->rotated;
-                    }
-                } else {
-                    if (moveItem(m_selectedInstanceId, c, r, m_selectedPreviewRotated, true)) {
-                        m_selectedInstanceId = -1;
-                    } else {
-                        const PlacedItem* other = getItemAt(c, r, true);
                         if (other && other->instanceId == m_selectedInstanceId) {
                             m_selectedInstanceId = -1;
                         }
@@ -484,13 +500,15 @@ Engine::SpriteRect GridInventory::getSpriteForItemDef(int defId, ItemCategory ca
 
 void GridInventory::drawChar(uint32_t* buf, int sw, int sh, int x, int y, char c, uint32_t color, int scale) const {
     if (c >= 'a' && c <= 'z') c = c - 'a' + 'A';
-    uint16_t glyph = getInvGlyph(c);
-    if (glyph == 0) return;
+    uint8_t uc = static_cast<uint8_t>(c);
+    if (uc >= 128) return;
 
-    for (int row = 0; row < 5; ++row) {
-        for (int col = 0; col < 3; ++col) {
-            int bit = (row * 3) + col;
-            if ((glyph >> (14 - bit)) & 1) {
+    for (int row = 0; row < 7; ++row) {
+        uint8_t rowBits = INV_GLYPH_5X7[uc][row];
+        if (rowBits == 0) continue;
+
+        for (int col = 0; col < 5; ++col) {
+            if ((rowBits >> (4 - col)) & 1) {
                 for (int sy = 0; sy < scale; ++sy) {
                     for (int sx = 0; sx < scale; ++sx) {
                         int px = x + col * scale + sx;
@@ -509,7 +527,7 @@ void GridInventory::drawText(uint32_t* buf, int sw, int sh, int x, int y, const 
     int curX = x;
     for (char c : text) {
         drawChar(buf, sw, sh, curX, y, c, color, scale);
-        curX += 4 * scale;
+        curX += 6 * scale;
     }
 }
 
@@ -589,116 +607,83 @@ void GridInventory::render(
 ) {
     if (!m_isOpen) return;
 
-    const int scale = (screenWidth >= 1000) ? 2 : 1;
-    const int SLOT_SIZE = 28 * scale;
-    const int SLOT_GAP  = 2 * scale;
+    const int scale = (screenWidth >= 1600) ? 2 : 1;
+    auto layout = getBriefcaseLayout(screenWidth, screenHeight);
 
-    int mainGridW = BRIEFCASE_COLS * SLOT_SIZE + (BRIEFCASE_COLS - 1) * SLOT_GAP;
-    int mainGridH = BRIEFCASE_ROWS * SLOT_SIZE + (BRIEFCASE_ROWS - 1) * SLOT_GAP;
-    int safeGridW = SAFE_POCKET_COLS * SLOT_SIZE + (SAFE_POCKET_COLS - 1) * SLOT_GAP;
-    int safeGridH = SAFE_POCKET_ROWS * SLOT_SIZE + (SAFE_POCKET_ROWS - 1) * SLOT_GAP;
+    // 1. TÍTULO TÁTICO DA MALETA (TOTALMENTE FORA DA IMAGEM DA MALETA, ACIMA DO CHASSI)
+    drawText(screenBuffer, screenWidth, screenHeight, layout.panelX + 4 * scale, layout.panelY - 14 * scale, "MALETA DE SINERGIA [8X5] - CLIQUE P/ MOVER", 0xFF78FF96, scale);
 
-    int totalW = mainGridW + 32 * scale + safeGridW + 32 * scale;
-    int panelH = mainGridH + 74 * scale;
-    int panelX = (screenWidth - totalW) / 2;
-    int panelY = (screenHeight - panelH) / 2;
+    // 1.5. Fundo Tático dos Slots da Maleta (10% de transparência sutil, 90% opaco / 0xEE0D1311)
+    // Cobre todo o vão interior da maleta para impedir que o bunker ou o chão fiquem vazando por trás dos itens
+    int gridAreaW = layout.cellSize * BRIEFCASE_COLS;
+    int gridAreaH = layout.cellSize * BRIEFCASE_ROWS;
+    drawRect(screenBuffer, screenWidth, screenHeight, layout.gridStartX, layout.gridStartY, gridAreaW, gridAreaH, 0xEE0D1311);
 
-    int mainStartX = panelX + 16 * scale;
-    int mainStartY = panelY + 34 * scale;
-
-    int safeStartX = mainStartX + mainGridW + 24 * scale;
-    int safeStartY = mainStartY + SLOT_SIZE;
-
-    // 1. Sombra de fundo e Chassi Metálico Enferrujado da Maleta (ui_briefcase_items.png)
-    drawRect(screenBuffer, screenWidth, screenHeight, panelX - 6 * scale, panelY - 6 * scale, totalW + 12 * scale, panelH + 12 * scale, 0xCC06090D);
-
+    // 2. Chassi Metálico da Maleta (ui_briefcase_items.png)
     if (uiAtlas && uiAtlas->isLoaded()) {
-        // Desenha o chassi metálico da maleta militar 6x4 (incluindo alça superior e ferrugem)
         uiAtlas->drawSprite(
             screenBuffer, screenWidth, screenHeight,
             Engine::AtlasCoords::UI_BRIEFCASE_CHASSIS,
-            mainStartX - 16 * scale, mainStartY - 34 * scale,
-            mainGridW + 32 * scale, mainGridH + 46 * scale,
-            1.0f
-        );
-
-        // Desenha o chassi blindado do Safe Pocket 2x2 à direita
-        uiAtlas->drawSprite(
-            screenBuffer, screenWidth, screenHeight,
-            Engine::AtlasCoords::UI_SAFEPOCKET_CHASSIS,
-            safeStartX - 10 * scale, safeStartY - 10 * scale,
-            safeGridW + 20 * scale, safeGridH + 20 * scale,
+            layout.panelX, layout.panelY,
+            layout.chassisW, layout.chassisH,
             1.0f
         );
     } else {
-        drawRect(screenBuffer, screenWidth, screenHeight, panelX, panelY, totalW, panelH, 0xF012181B);
+        drawRect(screenBuffer, screenWidth, screenHeight, layout.panelX, layout.panelY, layout.chassisW, layout.chassisH, 0xF012181B);
+        drawBorder(screenBuffer, screenWidth, screenHeight, layout.panelX, layout.panelY, layout.chassisW, layout.chassisH, 0xFF3E4E42);
     }
 
-    drawBorder(screenBuffer, screenWidth, screenHeight, panelX - 6 * scale, panelY - 6 * scale, totalW + 12 * scale, panelH + 12 * scale, 0xFF3E4E42);
-
-    // 2. Títulos das Secções
-    drawRect(screenBuffer, screenWidth, screenHeight, mainStartX, panelY + 4 * scale, mainGridW, 11 * scale, 0xD80D1311);
-    drawText(screenBuffer, screenWidth, screenHeight, mainStartX + 4 * scale, panelY + 7 * scale, "MALETA DE SINERGIA [6X4] - CLIQUE P/ MOVER", 0xFF78FF96, scale);
-
-    drawRect(screenBuffer, screenWidth, screenHeight, safeStartX - 6 * scale, safeStartY - 22 * scale, safeGridW + 12 * scale, 11 * scale, 0xD81A140C);
-    drawText(screenBuffer, screenWidth, screenHeight, safeStartX - 4 * scale, safeStartY - 19 * scale, "SAFE POCKET 2X2", 0xFFFFCC44, scale);
-
-    // 3. Desenha células da Grade Principal 6x4
+    // 3. Hover sobre células vazias (a arte da maleta já traz a grade desenhada com acabamento de metal oxidado)
     for (int r = 0; r < BRIEFCASE_ROWS; ++r) {
         for (int c = 0; c < BRIEFCASE_COLS; ++c) {
-            int slotX = mainStartX + c * (SLOT_SIZE + SLOT_GAP);
-            int slotY = mainStartY + r * (SLOT_SIZE + SLOT_GAP);
+            int slotX = layout.gridStartX + c * layout.cellSize;
+            int slotY = layout.gridStartY + r * layout.cellSize;
 
-            bool isHovered = (mouseX >= slotX && mouseX < slotX + SLOT_SIZE &&
-                              mouseY >= slotY && mouseY < slotY + SLOT_SIZE);
+            bool isHovered = (mouseX >= slotX && mouseX < slotX + layout.cellSize &&
+                              mouseY >= slotY && mouseY < slotY + layout.cellSize);
 
-            uint32_t slotBg = isHovered ? 0xFF28342A : 0xFF1A221C;
-            uint32_t slotBorder = isHovered ? 0xFF66FF88 : 0xFF323E34;
-
-            drawRect(screenBuffer, screenWidth, screenHeight, slotX, slotY, SLOT_SIZE, SLOT_SIZE, slotBg);
-            drawBorder(screenBuffer, screenWidth, screenHeight, slotX, slotY, SLOT_SIZE, SLOT_SIZE, slotBorder);
+            if (isHovered && m_mainGrid[r][c] == 0) {
+                drawBorder(screenBuffer, screenWidth, screenHeight, slotX, slotY, layout.cellSize, layout.cellSize, 0xFF50FF64);
+            }
         }
     }
 
-    // 4. Desenha células do Bolso Seguro (Safe Pocket 2x2)
-    for (int r = 0; r < SAFE_POCKET_ROWS; ++r) {
-        for (int c = 0; c < SAFE_POCKET_COLS; ++c) {
-            int slotX = safeStartX + c * (SLOT_SIZE + SLOT_GAP);
-            int slotY = safeStartY + r * (SLOT_SIZE + SLOT_GAP);
-
-            bool isHovered = (mouseX >= slotX && mouseX < slotX + SLOT_SIZE &&
-                              mouseY >= slotY && mouseY < slotY + SLOT_SIZE);
-
-            uint32_t slotBg = isHovered ? 0xFF342C1C : 0xFF221D14;
-            uint32_t slotBorder = isHovered ? 0xFFFFD044 : 0xFF584828;
-
-            drawRect(screenBuffer, screenWidth, screenHeight, slotX, slotY, SLOT_SIZE, SLOT_SIZE, slotBg);
-            drawBorder(screenBuffer, screenWidth, screenHeight, slotX, slotY, SLOT_SIZE, SLOT_SIZE, slotBorder);
-        }
-    }
-
-    // 5. Desenha os Itens posicionados na Maleta 6x4 e no Safe Pocket 2x2
+    // 4. Desenha os Itens posicionados na Maleta 8x4 perfeitamente alinhados aos quadrados da textura
     for (const auto& item : m_items) {
-        int baseX = item.inSafePocket ? safeStartX : mainStartX;
-        int baseY = item.inSafePocket ? safeStartY : mainStartY;
-
-        int itemScreenX = baseX + item.gridX * (SLOT_SIZE + SLOT_GAP);
-        int itemScreenY = baseY + item.gridY * (SLOT_SIZE + SLOT_GAP);
-        int itemPixelW  = item.getActualWidth() * SLOT_SIZE + (item.getActualWidth() - 1) * SLOT_GAP;
-        int itemPixelH  = item.getActualHeight() * SLOT_SIZE + (item.getActualHeight() - 1) * SLOT_GAP;
+        int itemScreenX = layout.gridStartX + item.gridX * layout.cellSize;
+        int itemScreenY = layout.gridStartY + item.gridY * layout.cellSize;
+        int itemPixelW  = item.getActualWidth() * layout.cellSize;
+        int itemPixelH  = item.getActualHeight() * layout.cellSize;
 
         bool isSelected = (item.instanceId == m_selectedInstanceId);
-        uint32_t bgTint = isSelected ? 0xAA284832 : 0x88141B17;
-        drawRect(screenBuffer, screenWidth, screenHeight, itemScreenX + 1, itemScreenY + 1, itemPixelW - 2, itemPixelH - 2, bgTint);
+        if (isSelected) {
+            drawRect(screenBuffer, screenWidth, screenHeight, itemScreenX + 1, itemScreenY + 1, itemPixelW - 2, itemPixelH - 2, 0x88285838);
+        }
 
         if (uiAtlas && uiAtlas->isLoaded()) {
             Engine::SpriteRect spriteRect = getSpriteForItemDef(item.def.id, item.def.category, item.def.element);
             int pad = 2 * scale;
+            int targetW = itemPixelW - pad * 2;
+            int targetH = itemPixelH - pad * 2;
+
+            // Preserva proporção natural do sprite para evitar qualquer distorção visual!
+            float srcAspect = static_cast<float>(spriteRect.w) / static_cast<float>(std::max(1, spriteRect.h));
+            float dstAspect = static_cast<float>(targetW) / static_cast<float>(std::max(1, targetH));
+            int drawW = targetW;
+            int drawH = targetH;
+            if (srcAspect > dstAspect) {
+                drawH = std::max(1, static_cast<int>(targetW / srcAspect));
+            } else {
+                drawW = std::max(1, static_cast<int>(targetH * srcAspect));
+            }
+            int drawX = itemScreenX + pad + (targetW - drawW) / 2;
+            int drawY = itemScreenY + pad + (targetH - drawH) / 2;
+
             uiAtlas->drawSprite(
                 screenBuffer, screenWidth, screenHeight,
                 spriteRect,
-                itemScreenX + pad, itemScreenY + pad,
-                itemPixelW - pad * 2, itemPixelH - pad * 2,
+                drawX, drawY,
+                drawW, drawH,
                 isSelected ? 1.35f : 1.05f
             );
         } else {
@@ -723,12 +708,12 @@ void GridInventory::render(
         }
     }
 
-    // 6. Desenha os Raios de Conexão (Synergy Links) por cima dos itens conectados!
+    // 5. Desenha os Raios de Conexão (Synergy Links) por cima dos itens conectados!
     for (const auto& link : m_links) {
-        int x0 = mainStartX + link.startGridX * (SLOT_SIZE + SLOT_GAP) + (SLOT_SIZE / 2);
-        int y0 = mainStartY + link.startGridY * (SLOT_SIZE + SLOT_GAP) + (SLOT_SIZE / 2);
-        int x1 = mainStartX + link.endGridX   * (SLOT_SIZE + SLOT_GAP) + (SLOT_SIZE / 2);
-        int y1 = mainStartY + link.endGridY   * (SLOT_SIZE + SLOT_GAP) + (SLOT_SIZE / 2);
+        int x0 = layout.gridStartX + link.startGridX * layout.cellSize + (layout.cellSize / 2);
+        int y0 = layout.gridStartY + link.startGridY * layout.cellSize + (layout.cellSize / 2);
+        int x1 = layout.gridStartX + link.endGridX   * layout.cellSize + (layout.cellSize / 2);
+        int y1 = layout.gridStartY + link.endGridY   * layout.cellSize + (layout.cellSize / 2);
 
         uint32_t beamColor = DayDoom::Engine::makeColor(80, 255, 100); // RAD_GREEN
         if (link.element == SynergyElement::ELEC_PURPLE)
@@ -742,10 +727,11 @@ void GridInventory::render(
         drawRect(screenBuffer, screenWidth, screenHeight, x1 - 2 * scale, y1 - 2 * scale, 5 * scale, 5 * scale, beamColor);
     }
 
-    // 7. Barra Inferior de Telemetria de Sinergias (Estilo Balatro)
-    int footerY = mainStartY + mainGridH + 10 * scale;
-    drawRect(screenBuffer, screenWidth, screenHeight, mainStartX, footerY, totalW - 32 * scale, 24 * scale, 0xEE0B100E);
-    drawBorder(screenBuffer, screenWidth, screenHeight, mainStartX, footerY, totalW - 32 * scale, 24 * scale, 0xFF3A5842);
+    // 6. Barra Inferior de Telemetria de Sinergias (TOTALMENTE FORA DA IMAGEM DA MALETA, ABAIXO DO CHASSI)
+    int footerY = layout.panelY + layout.chassisH + 6 * scale;
+    int footerH = 26 * scale;
+    drawRect(screenBuffer, screenWidth, screenHeight, layout.panelX, footerY, layout.chassisW, footerH, 0xEE0B100E);
+    drawBorder(screenBuffer, screenWidth, screenHeight, layout.panelX, footerY, layout.chassisW, footerH, 0xFF3A5842);
 
     char modLine1[128];
     std::snprintf(
@@ -756,7 +742,7 @@ void GridInventory::render(
         m_modifiers.fireRateMultiplier,
         m_modifiers.electricRicochets
     );
-    drawText(screenBuffer, screenWidth, screenHeight, mainStartX + 6 * scale, footerY + 4 * scale, modLine1, 0xFF50FF64, scale);
+    drawText(screenBuffer, screenWidth, screenHeight, layout.panelX + 8 * scale, footerY + 4 * scale, modLine1, 0xFF50FF64, scale);
 
     char modLine2[128];
     std::snprintf(
@@ -766,7 +752,7 @@ void GridInventory::render(
         static_cast<int>((m_modifiers.medkitEfficiency - 1.0f) * 100.0f + 0.5f),
         m_modifiers.cryoSlowActive ? "ATIVO" : "OFF"
     );
-    drawText(screenBuffer, screenWidth, screenHeight, mainStartX + 6 * scale, footerY + 13 * scale, modLine2, 0xFF88D8FF, scale);
+    drawText(screenBuffer, screenWidth, screenHeight, layout.panelX + 8 * scale, footerY + 14 * scale, modLine2, 0xFF88D8FF, scale);
 }
 
 } // namespace ZoneProtocol::Game

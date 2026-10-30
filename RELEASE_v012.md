@@ -59,3 +59,4 @@
 1. Baixe e extraia `ZoneProtocol_v012_Win64_Portable.zip`.
 2. Execute `ZoneProtocol_v012.exe` (ou `run_1280x800_16_10.bat`).
 3. Use **WASD** para mover, **Mouse** para mirar e atirar, **F** para saquear caixas/abrir portas, **TAB/I** para abrir a Maleta 6x4, **R/Botão Direito** para girar itens e **B** para visitar o Bunker Subterrâneo.
+

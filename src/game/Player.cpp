@@ -62,10 +62,20 @@ void Player::update(float deltaTime, const HAL::Input& input, ZoneMap& map, int 
 
     // Normaliza o vetor para velocidade constante em diagonais
     float moveLenSq = moveX * moveX + moveY * moveY;
-    if (moveLenSq > 0.0001f) {
+    m_isMoving = (moveLenSq > 0.0001f);
+    m_isRunning = (m_isMoving && isRunning && m_stamina > 0.0f);
+
+    if (m_isMoving) {
         float len = std::sqrt(moveLenSq);
         moveX = (moveX / len) * currentSpeed * deltaTime;
         moveY = (moveY / len) * currentSpeed * deltaTime;
+        m_animTimer += deltaTime;
+    } else {
+        m_animTimer = 0.0f;
+    }
+
+    if (m_hitStaggerTimer > 0.0f) {
+        m_hitStaggerTimer = std::max(0.0f, m_hitStaggerTimer - deltaTime);
     }
 
     // 4. Colisão com paredes com deslizamento físico (Wall Sliding)
@@ -104,6 +114,7 @@ void Player::update(float deltaTime, const HAL::Input& input, ZoneMap& map, int 
 
 void Player::takeDamage(float amount) {
     m_health = std::max(0.0f, m_health - amount);
+    m_hitStaggerTimer = 0.28f; // Ativa visual de recuo e sangue (Hit Stagger)
     if (amount > 15.0f && (std::rand() % 100 < 40)) {
         m_bleeding = true;
     }

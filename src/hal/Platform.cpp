@@ -23,25 +23,20 @@ bool Platform::init(
 
     // 1. Configuração da Resolução Canônica baseada no Perfil Selecionado
     switch (m_profile) {
-        case DisplayProfile::WIDESCREEN_16_10:
-            m_canonicalWidth = 640;
-            m_canonicalHeight = 400;
+        case DisplayProfile::HD_720P:
+            m_canonicalWidth = 1280;
+            m_canonicalHeight = 720;
             break;
 
-        case DisplayProfile::RETRO_4_3:
-            m_canonicalWidth = 320;
-            m_canonicalHeight = 240;
+        case DisplayProfile::STEAM_DECK_800P:
+            m_canonicalWidth = 1280;
+            m_canonicalHeight = 800;
             break;
 
-        case DisplayProfile::CLASSIC_DOOM_13H:
-            m_canonicalWidth = 320;
-            m_canonicalHeight = 200;
-            break;
-
-        case DisplayProfile::WIDESCREEN_16_9:
+        case DisplayProfile::FHD_1080P:
         default:
-            m_canonicalWidth = 480;
-            m_canonicalHeight = 270;
+            m_canonicalWidth = 1920;
+            m_canonicalHeight = 1080;
             break;
     }
 
@@ -54,7 +49,18 @@ bool Platform::init(
         return false;
     }
 
-    // Configuração das flags da janela
+    // Detecção da resolução máxima da tela do monitor para Fullscreen nativo
+    SDL_DisplayMode dm;
+    if (SDL_GetDesktopDisplayMode(0, &dm) == 0) {
+        windowWidth = dm.w;
+        windowHeight = dm.h;
+        ZoneProtocol::Engine::Logger::info(
+            "Display Monitor Detectado -> Resolucao Nativa: " + std::to_string(dm.w) + "x" + std::to_string(dm.h) +
+            " @" + std::to_string(dm.refresh_rate) + "Hz", "RENDER"
+        );
+    }
+
+    // Configuração das flags da janela (Fullscreen desktop automático com redimensionamento total)
     uint32_t windowFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 
     #if defined(__ANDROID__)
@@ -183,6 +189,77 @@ void Platform::toggleFullscreen() {
     m_isFullscreen = !m_isFullscreen;
     uint32_t flags = m_isFullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
     SDL_SetWindowFullscreen(m_window, flags);
+    ZoneProtocol::Engine::Logger::info(
+        std::string("[Platform] Display Mode toggled -> ") + (m_isFullscreen ? "FULLSCREEN_DESKTOP" : "WINDOWED"),
+        "RENDER"
+    );
+}
+
+bool Platform::setCanonicalResolution(int width, int height) {
+    if (width <= 0 || height <= 0) return false;
+    if (width == m_canonicalWidth && height == m_canonicalHeight && m_framebufferTexture != nullptr) {
+        return true;
+    }
+
+    m_canonicalWidth = width;
+    m_canonicalHeight = height;
+    m_screenBuffer.assign(static_cast<size_t>(m_canonicalWidth * m_canonicalHeight), 0xFF000000);
+
+    if (m_renderer) {
+        if (m_framebufferTexture) {
+            SDL_DestroyTexture(m_framebufferTexture);
+            m_framebufferTexture = nullptr;
+        }
+
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+        SDL_RenderSetLogicalSize(m_renderer, m_canonicalWidth, m_canonicalHeight);
+
+        m_framebufferTexture = SDL_CreateTexture(
+            m_renderer,
+            SDL_PIXELFORMAT_ARGB8888,
+            SDL_TEXTUREACCESS_STREAMING,
+            m_canonicalWidth,
+            m_canonicalHeight
+        );
+
+        if (!m_framebufferTexture) {
+            ZP_LOG_ERROR("RENDER", std::string("Falha ao recriar SDL_Texture para resolucao ") +
+                         std::to_string(width) + "x" + std::to_string(height) + ": " + SDL_GetError());
+            return false;
+        }
+        SDL_SetTextureScaleMode(m_framebufferTexture, SDL_ScaleModeNearest);
+    }
+
+    ZoneProtocol::Engine::Logger::info(
+        "[Platform] Canonical Resolution changed dynamically -> " +
+        std::to_string(m_canonicalWidth) + "x" + std::to_string(m_canonicalHeight) +
+        " (" + std::to_string((m_canonicalWidth * m_canonicalHeight) / 1000) + "k pixels, 16:10 Nearest-Neighbor)",
+        "RENDER"
+    );
+    ZP_LOG_SCRIPT("[VideoSettings] SetCanonicalResolution(" + std::to_string(m_canonicalWidth) + "x" + std::to_string(m_canonicalHeight) + ")");
+    return true;
+}
+
+int Platform::getResolutionPresetIndex() const {
+    if (m_canonicalWidth >= 1920) return 2; // 1080p (1920x1080)
+    if (m_canonicalHeight >= 800) return 1; // Steam Deck (1280x800)
+    return 0;                               // 720p (1280x720)
+}
+
+void Platform::setResolutionPresetIndex(int presetIdx) {
+    int clamped = std::clamp(presetIdx, 0, 2);
+    if (clamped == 0) {
+        setCanonicalResolution(1280, 720);
+    } else if (clamped == 1) {
+        setCanonicalResolution(1280, 800);
+    } else {
+        setCanonicalResolution(1920, 1080);
+    }
+}
+
+void Platform::stepResolutionPreset(int delta) {
+    int nextIdx = std::clamp(getResolutionPresetIndex() + delta, 0, 2);
+    setResolutionPresetIndex(nextIdx);
 }
 
 void Platform::setEditorMode(bool enabled) {

@@ -14,10 +14,9 @@ namespace DayDoom::HAL {
 
 // Perfis de Resolução e Proporção de Tela
 enum class DisplayProfile {
-    WIDESCREEN_16_10,  // 640x400 (janela 1280x800): Proporção 16:10 PC e Steam Deck
-    WIDESCREEN_16_9,   // 480x270: Proporção 16:9
-    RETRO_4_3,         // 320x240: Proporção Retro CRT 4:3
-    CLASSIC_DOOM_13H   // 320x200: Modo 13h MS-DOS
+    HD_720P,          // 1280x720 (16:9 HD Padrão)
+    STEAM_DECK_800P,  // 1280x800 (16:10 Widescreen Steam Deck)
+    FHD_1080P         // 1920x1080 (16:9 Full HD Padrão)
 };
 
 class Platform {
@@ -25,13 +24,13 @@ public:
     Platform();
     ~Platform();
 
-    // Inicialização com perfil de tela adaptável (Padrão 1280x800 16:10)
+    // Inicialização com detecção automática da resolução máxima e tela cheia
     bool init(
         const std::string& title,
-        DisplayProfile profile = DisplayProfile::WIDESCREEN_16_10,
-        int windowWidth = 1280,
-        int windowHeight = 800,
-        bool fullscreen = false
+        DisplayProfile profile = DisplayProfile::FHD_1080P,
+        int windowWidth = 1920,
+        int windowHeight = 1080,
+        bool fullscreen = true
     );
 
     void shutdown();
@@ -42,6 +41,13 @@ public:
 
     // Alternar tela cheia dinamicamente
     void toggleFullscreen();
+    bool isFullscreen() const { return m_isFullscreen; }
+
+    // Alteração dinâmica exclusiva dos 3 padrões (720p, Steam Deck 1280x800, 1080p)
+    bool setCanonicalResolution(int width, int height);
+    int getResolutionPresetIndex() const;
+    void setResolutionPresetIndex(int presetIdx);
+    void stepResolutionPreset(int delta);
 
     // Controle de captura do mouse (Modo Relativo para FPS)
     void setRelativeMouseMode(bool enabled) { SDL_SetRelativeMouseMode(enabled ? SDL_TRUE : SDL_FALSE); }
@@ -75,9 +81,9 @@ public:
     SDL_Renderer* getSDLRenderer() const { return m_renderer; }
 
 private:
-    DisplayProfile m_profile = DisplayProfile::WIDESCREEN_16_9;
-    int m_canonicalWidth = 480;
-    int m_canonicalHeight = 270;
+    DisplayProfile m_profile = DisplayProfile::FHD_1080P;
+    int m_canonicalWidth = 1920;
+    int m_canonicalHeight = 1080;
 
     SDL_Window* m_window = nullptr;
     SDL_Renderer* m_renderer = nullptr;

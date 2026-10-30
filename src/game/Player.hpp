@@ -54,6 +54,14 @@ public:
     bool hasExtractionCase() const { return m_hasExtractionCase; }
     void setExtractionCase(bool hasCase) { m_hasExtractionCase = hasCase; }
 
+    // Animação e Estados Visuais Fluidos
+    bool isMoving() const { return m_isMoving; }
+    bool isRunning() const { return m_isRunning; }
+    bool hasWeaponEquipped() const { return m_hasWeaponEquipped; }
+    void setWeaponEquipped(bool equipped) { m_hasWeaponEquipped = equipped; }
+    float getHitStaggerTimer() const { return m_hitStaggerTimer; }
+    float getAnimTimer() const { return m_animTimer; }
+
 private:
     Engine::Camera m_camera;
 
@@ -70,6 +78,13 @@ private:
     bool m_bleeding = false;
     float m_elevation = 0.0f;
     float m_attackCooldown = 0.0f;
+
+    // Animação fluida
+    bool m_isMoving = false;
+    bool m_isRunning = false;
+    bool m_hasWeaponEquipped = true;
+    float m_hitStaggerTimer = 0.0f;
+    float m_animTimer = 0.0f;
 
     int m_floor = 0;
     bool m_hasExtractionCase = true; // Agente infiltrou na Zona com a Maleta de Extração

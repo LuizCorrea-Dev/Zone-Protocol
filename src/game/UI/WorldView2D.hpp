@@ -31,17 +31,20 @@ public:
         const Engine::TextureManager& textures,
         float time,
         const Engine::SpriteAtlas* entityAtlas = nullptr,
-        const Engine::SpriteAtlas* objectsAtlas = nullptr
+        const Engine::SpriteAtlas* objectsAtlas = nullptr,
+        const Engine::SpriteAtlas* playerAnimAtlas = nullptr
     );
 
     float getTileSize(int screenWidth) const {
-        return (screenWidth >= 1000) ? 64.0f : 32.0f;
+        // Mantém 20 blocos táticos na horizontal (64px em 1280x720 / 1280x800 e 96px em 1920x1080)
+        return std::max(32.0f, static_cast<float>(screenWidth) / 20.0f);
     }
 
 private:
     Engine::LightCaster2D m_lightCaster;
     std::vector<RuinProp> m_props;
     bool m_propsInitialized = false;
+    uint32_t m_lastMapSeed = 0;
 
     void initProps(const ZoneMap& map);
 
@@ -55,7 +58,9 @@ private:
         int cx, int cy, float dirX, float dirY,
         bool attacking, float time,
         const Engine::SpriteAtlas* entityAtlas,
-        float tileSize
+        float tileSize,
+        const Player* player = nullptr,
+        const Engine::SpriteAtlas* playerAnimAtlas = nullptr
     );
 
     std::vector<float> m_lightGrid;

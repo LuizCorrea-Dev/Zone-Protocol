@@ -142,35 +142,23 @@ void WorldView2D::drawCircle(uint32_t* buf, int sw, int sh, int cx, int cy, int 
 }
 
 void WorldView2D::initProps(const ZoneMap& map) {
-    if (m_propsInitialized) return;
+    if (m_propsInitialized && m_lastMapSeed == map.getSeed()) return;
     m_props.clear();
+    m_lastMapSeed = map.getSeed();
 
-    for (int y = 4; y < map.getHeight() - 4; ++y) {
-        for (int x = 4; x < map.getWidth() - 4; ++x) {
-            int cell = map.getCell(x, y);
-            int floor = map.getFloorType(x, y);
-            uint32_t hash = (x * 73856093u) ^ (y * 19349663u);
-
-            if (cell == 0 && floor == FLOOR_WOOD) {
-                bool nearWall = (map.getCell(x - 1, y) > 0 || map.getCell(x + 1, y) > 0 ||
-                                 map.getCell(x, y - 1) > 0 || map.getCell(x, y + 1) > 0);
-                if (nearWall && (hash % 100 < 22)) {
-                    RuinProp p;
-                    p.x = static_cast<float>(x) + 0.5f;
-                    p.y = static_cast<float>(y) + 0.5f;
-                    p.type = (hash % 3 == 0) ? 0 : ((hash % 3 == 1) ? 1 : 2); // Crate, Barrel, Generator
-                    m_props.push_back(p);
-                }
-            } else if (cell == 0 && floor == FLOOR_SAND) {
-                // Pinheiros escuros e entulhos na área externa da floresta
-                if (hash % 100 < 6) {
-                    RuinProp p;
-                    p.x = static_cast<float>(x) + 0.5f;
-                    p.y = static_cast<float>(y) + 0.5f;
-                    p.type = (hash % 100 < 4) ? 3 : 4; // 3 = Pine Tree, 4 = Concrete Rubble
-                    m_props.push_back(p);
-                }
+    for (int y = 0; y < map.getHeight(); ++y) {
+        for (int x = 0; x < map.getWidth(); ++x) {
+            auto propType = map.getPropType(x, y);
+            // LOOT_CHEST é renderizado pelo CombatSystem como caixa militar interativa
+            if (propType == DayDoom::Game::MapPropType::NONE || propType == DayDoom::Game::MapPropType::LOOT_CHEST) {
+                continue;
             }
+
+            RuinProp p;
+            p.x = static_cast<float>(x) + 0.5f;
+            p.y = static_cast<float>(y) + 0.5f;
+            p.type = static_cast<int>(propType);
+            m_props.push_back(p);
         }
     }
     m_propsInitialized = true;
@@ -181,11 +169,120 @@ void WorldView2D::drawStalker(
     int cx, int cy, float dirX, float dirY,
     bool attacking, float time,
     const Engine::SpriteAtlas* entityAtlas,
-    float tileSize
+    float tileSize,
+    const Player* player,
+    const Engine::SpriteAtlas* playerAnimAtlas
 ) {
     float perpX = -dirY;
     float perpY = dirX;
 
+    // 1. Prioridade: Folha fluida de animação sem rotação no próprio eixo (sprites_player_anim.png)
+    if (playerAnimAtlas && playerAnimAtlas->isLoaded() && player) {
+        bool isMoving = player->isMoving();
+        bool isRunning = player->isRunning();
+        bool hasWeapon = player->hasWeaponEquipped();
+        float hitStagger = player->getHitStaggerTimer();
+
+        // Fixa a Coluna da folha baseada estritamente na direção que o jogador olha/mira:
+        // Coluna 0: Baixo (Frente) | Coluna 1: Cima (Costas) | Coluna 2: Direita | Coluna 3: Esquerda
+        int dirCol = 0;
+        if (std::abs(dirX) > std::abs(dirY)) {
+            dirCol = (dirX > 0.0f) ? 2 : 3;
+        } else {
+            dirCol = (dirY > 0.0f) ? 0 : 1;
+        }
+
+        int cellW = playerAnimAtlas->getWidth() / 4;
+        int cellH = playerAnimAtlas->getHeight() / 4;
+        int spriteSize = static_cast<int>(tileSize * 1.35f);
+        drawCircle(buf, sw, sh, cx, cy + spriteSize / 4, static_cast<int>(tileSize * 0.28f), 0x8805080C, true);
+
+        // Se estiver a sofrer dano (Hit Stagger): Linha 3 na coluna da direção
+        if (hitStagger > 0.0f) {
+            Engine::SpriteRect playerRect = { dirCol * cellW, 3 * cellH, cellW, cellH };
+            playerAnimAtlas->drawSprite(
+                buf, sw, sh,
+                playerRect,
+                cx - spriteSize / 2, cy - spriteSize / 2,
+                spriteSize, spriteSize,
+                2.0f
+            );
+        } else if (!isMoving && !attacking) {
+            // PARADO (Idle): Linha 0 de sprites_entities (com arma) ou Linha 1 de playerAnim (sem arma)
+            if (hasWeapon && entityAtlas && entityAtlas->isLoaded()) {
+                int entCellW = entityAtlas->getWidth() / 4;
+                int entCellH = entityAtlas->getHeight() / 4;
+                Engine::SpriteRect playerRect = { dirCol * entCellW, 0 * entCellH, entCellW, entCellH };
+                entityAtlas->drawSprite(
+                    buf, sw, sh,
+                    playerRect,
+                    cx - spriteSize / 2, cy - spriteSize / 2,
+                    spriteSize, spriteSize,
+                    1.10f
+                );
+            } else {
+                Engine::SpriteRect playerRect = { dirCol * cellW, 1 * cellH, cellW, cellH };
+                playerAnimAtlas->drawSprite(
+                    buf, sw, sh,
+                    playerRect,
+                    cx - spriteSize / 2, cy - spriteSize / 2,
+                    spriteSize, spriteSize,
+                    1.10f
+                );
+            }
+        } else {
+            // A ANDAR / CORRER: Alterna passos na MESMA direção (dirCol) com Head Bobbing!
+            float stepSpeed = isRunning ? 0.12f : 0.20f;
+            int stepPhase = static_cast<int>(time / stepSpeed) % 2;
+            int bobOffsetY = (stepPhase == 1) ? -2 : 0;
+
+            if (hasWeapon) {
+                // Passo com arma: alterna entre pose base e passada (Linha 0 de animAtlas)
+                if (stepPhase == 0 && entityAtlas && entityAtlas->isLoaded()) {
+                    int entCellW = entityAtlas->getWidth() / 4;
+                    int entCellH = entityAtlas->getHeight() / 4;
+                    Engine::SpriteRect playerRect = { dirCol * entCellW, 0 * entCellH, entCellW, entCellH };
+                    entityAtlas->drawSprite(
+                        buf, sw, sh,
+                        playerRect,
+                        cx - spriteSize / 2, cy - spriteSize / 2 + bobOffsetY,
+                        spriteSize, spriteSize,
+                        attacking ? 1.35f : 1.10f
+                    );
+                } else {
+                    Engine::SpriteRect playerRect = { dirCol * cellW, 0 * cellH, cellW, cellH };
+                    playerAnimAtlas->drawSprite(
+                        buf, sw, sh,
+                        playerRect,
+                        cx - spriteSize / 2, cy - spriteSize / 2 + bobOffsetY,
+                        spriteSize, spriteSize,
+                        attacking ? 1.35f : 1.10f
+                    );
+                }
+            } else {
+                // Desarmado: Linha 1 (Andar) e Linha 2 (Correr)
+                int row = (stepPhase == 0) ? 1 : 2;
+                Engine::SpriteRect playerRect = { dirCol * cellW, row * cellH, cellW, cellH };
+                playerAnimAtlas->drawSprite(
+                    buf, sw, sh,
+                    playerRect,
+                    cx - spriteSize / 2, cy - spriteSize / 2 + bobOffsetY,
+                    spriteSize, spriteSize,
+                    1.10f
+                );
+            }
+        }
+
+        if (attacking) {
+            int fx = cx + static_cast<int>(dirX * (tileSize * 0.55f) + perpX * (tileSize * 0.10f));
+            int fy = cy + static_cast<int>(dirY * (tileSize * 0.55f) + perpY * (tileSize * 0.10f));
+            drawCircle(buf, sw, sh, fx, fy, static_cast<int>(tileSize * 0.18f), 0xFFFFF690, true);
+            drawCircle(buf, sw, sh, fx, fy, static_cast<int>(tileSize * 0.08f), 0xFFFFFFFF, true);
+        }
+        return;
+    }
+
+    // 2. Fallback: Folha original de entidades (sprites_entities.png)
     if (entityAtlas && entityAtlas->isLoaded()) {
         // Escolhe a pose direcional do sobrevivente Hazmat na Folha 2 (sprites_entities.png)
         Engine::SpriteRect playerRect = Engine::AtlasCoords::PLAYER_IDLE_DOWN;
@@ -246,7 +343,8 @@ void WorldView2D::render(
     const Engine::TextureManager& textures,
     float time,
     const Engine::SpriteAtlas* entityAtlas,
-    const Engine::SpriteAtlas* objectsAtlas
+    const Engine::SpriteAtlas* objectsAtlas,
+    const Engine::SpriteAtlas* playerAnimAtlas
 ) {
     initProps(map);
 
@@ -260,9 +358,9 @@ void WorldView2D::render(
     float dirY = player.getCamera().dir.y;
     float aimAngle = std::atan2(dirY, dirX);
 
-    // Padrão Steam Deck 1280x800 (16:10): 20x12.5 blocos na tela (64x64 em 1280x800 ou 32x32 em 640x400 2x Nearest)
+    // Padrão 720p / Steam Deck 1280x800 / 1080p: 20 blocos táticos na horizontal (64px ou 96px)
     float tileSize = getTileSize(screenWidth);
-    const int lightStep = (screenWidth >= 1000) ? 8 : 4;
+    const int lightStep = (screenWidth >= 1600) ? 8 : 6;
 
     float screenCenterX = static_cast<float>(screenWidth) * 0.5f;
     float screenCenterY = static_cast<float>(screenHeight) * 0.5f;
@@ -434,7 +532,7 @@ void WorldView2D::render(
     }
 
     // Passo 4.2: Renderiza Paredes de Ruínas em 2.5D (Topo chanfrado + Face frontal vertical de tijolos expostos)
-    int wallFaceHeight = (screenWidth >= 1000) ? 14 : 8;
+    int wallFaceHeight = std::max(8, static_cast<int>(tileSize * 0.25f));
     for (int cy = minCY; cy <= maxCY; ++cy) {
         for (int cx = minCX; cx <= maxCX; ++cx) {
             int cell = map.getCell(cx, cy);
@@ -458,6 +556,15 @@ void WorldView2D::render(
 
             bool hasSouthOpen = (cy + 1 < mapH) && (map.getCell(cx, cy + 1) == 0 || map.isDoor(cx, cy + 1));
 
+            int texID = Engine::TextureManager::CONCRETE;
+            if (cell == TYPE_WALL_BRICK) texID = Engine::TextureManager::BRICK_DARK;
+            else if (cell == TYPE_HANGAR_BLUE) texID = Engine::TextureManager::HANGAR_BLUE;
+            else if (cell == TYPE_MURO_SOVIET) texID = Engine::TextureManager::MURO_SOVIET;
+            else if (cell == TYPE_CONTAINER_BLU) texID = Engine::TextureManager::CONTAINER_BLUE;
+            else if (cell == TYPE_CONTAINER_RED) texID = Engine::TextureManager::CONTAINER_RED;
+            else if (cell == TYPE_FENCE_WIRE) texID = Engine::TextureManager::FENCE_WIRE;
+            else if (isWindowType(cell)) texID = Engine::TextureManager::WINDOW_WOOD_FIXED;
+
             for (int sy = py0; sy < py1; ++sy) {
                 int ty = static_cast<int>((sy - tileScreenY) * invH) & 63;
                 int bufferRow = sy * screenWidth;
@@ -468,7 +575,17 @@ void WorldView2D::render(
                     int gx = std::clamp(sx / lightStep, 0, GW - 1);
                     float light = lightGrid[gy * GW + gx];
 
-                    uint32_t wallColor = textures.getPixel(Engine::TextureManager::CONCRETE, tx, ty);
+                    uint32_t wallColor = textures.getPixel(texID, tx, ty);
+
+                    // Cerca vazada: pixels muito escuros deixam ver o chão e inimigos do outro lado
+                    if (cell == TYPE_FENCE_WIRE) {
+                        uint8_t cr = (wallColor >> 16) & 0xFF;
+                        uint8_t cg = (wallColor >> 8) & 0xFF;
+                        uint8_t cb = wallColor & 0xFF;
+                        if (cr < 35 && cg < 35 && cb < 35) {
+                            continue;
+                        }
+                    }
 
                     if (ty <= 3 || tx <= 2) {
                         wallColor = Engine::applySideShade(wallColor, 0);
@@ -480,7 +597,7 @@ void WorldView2D::render(
                 }
             }
 
-            if (hasSouthOpen && px0 < px1) {
+            if (hasSouthOpen && px0 < px1 && cell != TYPE_FENCE_WIRE && !isWindowType(cell)) {
                 int rawFaceY0 = static_cast<int>(tileScreenY + tileSize);
                 int faceY0 = std::clamp(rawFaceY0, 0, screenHeight);
                 int faceY1 = std::clamp(rawFaceY0 + wallFaceHeight, 0, screenHeight);
@@ -539,22 +656,49 @@ void WorldView2D::render(
             int w = static_cast<int>(tileSize * 0.72f);
             int h = static_cast<int>(tileSize * 0.72f);
 
-            if (prop.type == 1) {
-                objRect = Engine::AtlasCoords::OBJ_BARREL_RAD;
-                w = static_cast<int>(tileSize * 0.55f);
-                h = static_cast<int>(tileSize * 0.75f);
-            } else if (prop.type == 2) {
-                objRect = Engine::AtlasCoords::OBJ_GENERATOR;
-                w = static_cast<int>(tileSize * 0.90f);
-                h = static_cast<int>(tileSize * 0.80f);
-            } else if (prop.type == 3) {
-                objRect = Engine::AtlasCoords::OBJ_PINE_TREE_1;
-                w = static_cast<int>(tileSize * 1.15f);
-                h = static_cast<int>(tileSize * 1.85f);
-            } else if (prop.type == 4) {
-                objRect = Engine::AtlasCoords::OBJ_RUBBLE_1;
-                w = static_cast<int>(tileSize * 0.95f);
-                h = static_cast<int>(tileSize * 0.65f);
+            auto pType = static_cast<DayDoom::Game::MapPropType>(prop.type);
+            switch (pType) {
+                case DayDoom::Game::MapPropType::BARREL_RAD:
+                    objRect = Engine::AtlasCoords::OBJ_BARREL_RAD;
+                    w = static_cast<int>(tileSize * 0.55f);
+                    h = static_cast<int>(tileSize * 0.75f);
+                    break;
+                case DayDoom::Game::MapPropType::GENERATOR:
+                    objRect = Engine::AtlasCoords::OBJ_GENERATOR;
+                    w = static_cast<int>(tileSize * 0.90f);
+                    h = static_cast<int>(tileSize * 0.80f);
+                    break;
+                case DayDoom::Game::MapPropType::PINE_TREE:
+                    objRect = ((static_cast<int>(prop.x + prop.y)) % 2 == 0) ? Engine::AtlasCoords::OBJ_PINE_TREE_1 : Engine::AtlasCoords::OBJ_PINE_TREE_2;
+                    w = static_cast<int>(tileSize * 1.15f);
+                    h = static_cast<int>(tileSize * 1.85f);
+                    break;
+                case DayDoom::Game::MapPropType::RUBBLE_CAR:
+                    objRect = ((static_cast<int>(prop.x + prop.y)) % 2 == 0) ? Engine::AtlasCoords::OBJ_RUBBLE_1 : Engine::AtlasCoords::OBJ_RUBBLE_2;
+                    w = static_cast<int>(tileSize * 0.95f);
+                    h = static_cast<int>(tileSize * 0.65f);
+                    break;
+                case DayDoom::Game::MapPropType::LOCKER:
+                    objRect = Engine::AtlasCoords::OBJ_LOCKER_DOUBLE;
+                    w = static_cast<int>(tileSize * 0.75f);
+                    h = static_cast<int>(tileSize * 1.15f);
+                    break;
+                case DayDoom::Game::MapPropType::ELECTRIC_PANEL:
+                    objRect = Engine::AtlasCoords::OBJ_PANEL_ELEC;
+                    w = static_cast<int>(tileSize * 0.85f);
+                    h = static_cast<int>(tileSize * 0.85f);
+                    break;
+                case DayDoom::Game::MapPropType::WORKBENCH:
+                    objRect = Engine::AtlasCoords::OBJ_CRATE_CLOSED;
+                    w = static_cast<int>(tileSize * 0.80f);
+                    h = static_cast<int>(tileSize * 0.65f);
+                    break;
+                case DayDoom::Game::MapPropType::CRATE_WOOD:
+                default:
+                    objRect = Engine::AtlasCoords::OBJ_CRATE_MOSS;
+                    w = static_cast<int>(tileSize * 0.72f);
+                    h = static_cast<int>(tileSize * 0.72f);
+                    break;
             }
 
             objectsAtlas->drawSprite(
@@ -564,7 +708,7 @@ void WorldView2D::render(
                 w, h,
                 light
             );
-        } else if (prop.type == 0) {
+        } else if (prop.type == 0 || prop.type == 1) {
             int sz = static_cast<int>(tileSize * 0.5f);
             int x0 = isx - sz / 2;
             int y0 = isy - sz / 2;
@@ -680,13 +824,14 @@ void WorldView2D::render(
     }
 
     // =========================================================================
-    // 8. RENDERIZAÇÃO DO OPERADOR STALKER NO CENTRO DA TELA (sprites_entities.png)
+    // 8. RENDERIZAÇÃO DO OPERADOR STALKER NO CENTRO DA TELA (sprites_player_anim.png / sprites_entities.png)
     // =========================================================================
     drawStalker(
         screenBuffer, screenWidth, screenHeight,
         static_cast<int>(screenCenterX), static_cast<int>(screenCenterY),
         dirX, dirY, player.isAttacking(), time,
-        entityAtlas, tileSize
+        entityAtlas, tileSize,
+        &player, playerAnimAtlas
     );
 }
 

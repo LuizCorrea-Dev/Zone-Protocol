@@ -1,8 +1,8 @@
 #include <windows.h>
 
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION     0,1,2,0
-PRODUCTVERSION  0,1,2,0
+FILEVERSION     0,1,4,0
+PRODUCTVERSION  0,1,4,0
 FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
 FILEFLAGS       0
 FILEOS          VOS__WINDOWS32
@@ -15,12 +15,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName",      "LuizCorrea-Dev\0"
             VALUE "FileDescription",  "ZONE PROTOCOL - Roguelike Tatico Top-Down 2D\0"
-            VALUE "FileVersion",      "v0.1.2 (0.1.2.0)\0"
+            VALUE "FileVersion",      "v0.1.4 (0.1.4.0)\0"
             VALUE "InternalName",     "ZoneProtocol\0"
             VALUE "LegalCopyright",   "Copyright (C) 2026 LuizCorrea-Dev\0"
-            VALUE "OriginalFilename", "ZoneProtocol_v012.exe\0"
+            VALUE "OriginalFilename", "ZoneProtocol_v014.exe\0"
             VALUE "ProductName",      "ZONE PROTOCOL\0"
-            VALUE "ProductVersion",   "v0.1.2\0"
+            VALUE "ProductVersion",   "v0.1.4\0"
         END
     END
     BLOCK "VarFileInfo"

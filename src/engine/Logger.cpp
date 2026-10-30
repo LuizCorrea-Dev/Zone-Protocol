@@ -575,7 +575,7 @@ void Logger::init(int argc, char* argv[]) {
               << "=====================================================================\n"
               << "Exe timestamp: " << exeBuildTime << "\n"
               << "Current time:  " << curSlashSS.str() << "\n"
-              << "Version 0.1.2.1337\n"
+              << "Version 0.1.3.1337\n"
               << "=====================================================================\n\n";
 
     if (s_rptFile.is_open()) {
@@ -612,8 +612,8 @@ void Logger::init(int argc, char* argv[]) {
          " MB free (Load: " + std::to_string(memStatus.dwMemoryLoad) + "%)", "ENGINE");
 #endif
     info("Diagnostic Logs Initialized -> RPT: '" + s_rptFilePath + "' | ERROR: '" + s_errorFilePath + "' | SCRIPT: '" + s_scriptFilePath + "'", "ENGINE");
-    script("Initializing globals 'ZoneProtocol' v0.1.2 (16:10 Widescreen 1280x800 Steam Deck & PC)");
-    script("Module: Core+Gameplay+UI; defines: \"ZONE_PROTOCOL_0_1_2,PLATFORM_WINDOWS,RELEASE,WIDESCREEN_16_10,DDA_LIGHTCASTER,SYNERGY_BRIEFCASE_6X4,SAFE_POCKET_2X2,BUNKER_HUB\"");
+    script("Initializing globals 'ZoneProtocol' v0.1.3 (720p / Steam Deck 1280x800 / 1080p FHD)");
+    script("Module: Core+Gameplay+UI; defines: \"ZONE_PROTOCOL_0_1_3,PLATFORM_WINDOWS,RELEASE,FHD_1080P,STEAM_DECK_800P,HD_720P,DDA_LIGHTCASTER,SYNERGY_BRIEFCASE_6X4,SAFE_POCKET_2X2,BUNKER_HUB\"");
 }
 
 void Logger::shutdown() {
@@ -641,15 +641,32 @@ void Logger::shutdown() {
     }
 
     if (s_errorFile.is_open()) {
-        s_errorFile << getTimeOnly() << " ENGINE       : Session ended cleanly (Warnings: " << s_totalWarnings
-                    << ", Errors: " << s_totalErrors << ")\n";
         s_errorFile.flush();
         s_errorFile.close();
+        // Remove error.log se a sessão não teve nenhum erro
+        if (s_totalErrors == 0) {
+            std::error_code ec;
+            std::filesystem::remove(s_errorFilePath, ec);
+        }
+    }
+
+    if (s_rptFile.is_open()) {
+        s_rptFile.flush();
+        s_rptFile.close();
+        // Remove .RPT se não houve erros nem avisos
+        if (s_totalErrors == 0 && s_totalWarnings == 0) {
+            std::error_code ec;
+            std::filesystem::remove(s_rptFilePath, ec);
+        }
     }
 
     if (s_scriptFile.is_open()) {
         s_scriptFile.flush();
         s_scriptFile.close();
+        if (s_totalErrors == 0 && s_totalWarnings == 0) {
+            std::error_code ec;
+            std::filesystem::remove(s_scriptFilePath, ec);
+        }
     }
 
     s_initialized = false;

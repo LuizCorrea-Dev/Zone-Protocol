@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <algorithm>
 
 namespace ZoneProtocol::Engine {
 
@@ -47,6 +48,32 @@ namespace AtlasCoords {
     const SpriteRect BRUTE_BACK        = { 1 * ENT_CELL, 3 * ENT_CELL, ENT_CELL, ENT_CELL };
     const SpriteRect BRUTE_RIGHT       = { 2 * ENT_CELL, 3 * ENT_CELL, ENT_CELL, ENT_CELL };
     const SpriteRect BRUTE_LEFT        = { 3 * ENT_CELL, 3 * ENT_CELL, ENT_CELL, ENT_CELL };
+
+    // --- FOLHAS DE ANIMAÇÃO FLUIDA HD (2048x2048 -> Células 512x512 ou 256x256) ---
+    // sprites_player_anim.png:
+    // Linha 0: Caminhada / Corrida com Arma AK-74
+    // Linha 1: Mira e Passada Tática com Arma
+    // Linha 2: Caminhada / Corrida Desarmado (Bunker / Fuga)
+    // Linha 3: Hit Stagger / Sofrer Dano (Impacto e Sangue)
+    inline SpriteRect playerAnim(int frame, int row, int cell = ENT_CELL) {
+        return fromGrid(frame % 4, std::clamp(row, 0, 3), cell, cell);
+    }
+
+    // sprites_crawler_anim.png:
+    // Linhas 0-1: Deslocamento furtivo e corrida rápida (4 direções)
+    // Linha 2: Perseguição agressiva
+    // Linha 3: Bote / Ataque garras e mandíbula + Reação a dano
+    inline SpriteRect crawlerAnim(int frame, int row, int cell = ENT_CELL) {
+        return fromGrid(frame % 4, std::clamp(row, 0, 3), cell, cell);
+    }
+
+    // sprites_brute_anim.png:
+    // Linhas 0-1: Passada pesada de patrulha e investida (Charge)
+    // Linha 2: Golpe duplo de garras (Melee Smash)
+    // Linha 3: Reação a dano / Rugido
+    inline SpriteRect bruteAnim(int frame, int row, int cell = ENT_CELL) {
+        return fromGrid(frame % 4, std::clamp(row, 0, 3), cell, cell);
+    }
 
     // --- FOLHA 3: sprites_map_objects.png (2048x2048) ---
     const SpriteRect OBJ_CRATE_OPEN      = { 30, 58, 202, 200 };

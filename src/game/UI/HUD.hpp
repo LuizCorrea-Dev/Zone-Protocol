@@ -9,6 +9,18 @@
 
 namespace DayDoom::Game::UI {
 
+enum class VideoMenuAction {
+    NONE = 0,
+    OPEN_MENU,
+    CLOSE_MENU,
+    STEP_DOWN,        // Diminuir resolução: 1280x800 -> 960x600 -> 640x400
+    STEP_UP,          // Aumentar resolução: 640x400 -> 960x600 -> 1280x800
+    SELECT_640x400,   // Preset 0: 640x400
+    SELECT_960x600,   // Preset 1: 960x600
+    SELECT_1280x800,  // Preset 2: 1280x800
+    TOGGLE_FULLSCREEN // Alternar Tela Cheia / Janela [F11]
+};
+
 struct BunkerState {
     int credits = 2450;
     int scrap = 184;
@@ -22,6 +34,23 @@ public:
     HUD(int screenWidth = 640, int screenHeight = 400);
 
     void setScreenDimensions(int w, int h);
+    int getScreenWidth() const { return m_screenWidth; }
+    int getScreenHeight() const { return m_screenHeight; }
+
+    // Controle do Menu de Resolução (720p / Steam Deck 1280x800 / 1080p)
+    bool isVideoMenuOpen() const { return m_videoMenuOpen; }
+    void setVideoMenuOpen(bool open) { m_videoMenuOpen = open; }
+    void toggleVideoMenu() { m_videoMenuOpen = !m_videoMenuOpen; }
+
+    // Renderiza o menu tático de opções de resolução no Bunker/Pause
+    // Retorna a ação selecionada (0=Nenhuma, 1=720p, 2=1280x800, 3=1080p, 4=Fullscreen, 5=Fechar)
+    int renderVideoMenu(
+        uint32_t* screenBuffer,
+        int mouseX,
+        int mouseY,
+        float fps,
+        bool isFullscreen
+    );
 
     // Renderiza a interface tática completa na Zona: vitais, cronômetro de extração, maleta, loot e mira
     void render(
@@ -36,7 +65,8 @@ public:
         bool isDoorOpen = false,
         bool nearLootCrate = false,
         const std::string& lootBanner = "",
-        int mutantsKilled = 0
+        int mutantsKilled = 0,
+        float evacuationCountdown = -1.0f
     );
 
     // Renderiza a Tela de Carregamento Oficial (Loading Screen.png + ui_loading_bar.png)
@@ -86,9 +116,10 @@ public:
 private:
     int m_screenWidth;
     int m_screenHeight;
+    bool m_videoMenuOpen = false;
 
     void drawSurvivalBars(uint32_t* screenBuffer, const Player& player, int mutantsKilled);
-    void drawExtractionTimer(uint32_t* screenBuffer, float remainingTime, bool isNearExtraction);
+    void drawExtractionTimer(uint32_t* screenBuffer, float remainingTime, bool isNearExtraction, float evacuationCountdown = -1.0f);
     void drawBriefcaseStatus(uint32_t* screenBuffer, const Player& player);
     void drawCrosshair(uint32_t* screenBuffer, int mouseX, int mouseY, bool isAttacking);
     void drawSectorHeader(uint32_t* screenBuffer, const char* sectorName, float fps);

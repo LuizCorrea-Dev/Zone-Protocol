@@ -7,8 +7,8 @@
 
 namespace ZoneProtocol::Game {
 
-constexpr int BRIEFCASE_COLS = 6;
-constexpr int BRIEFCASE_ROWS = 4;
+constexpr int BRIEFCASE_COLS = 8;
+constexpr int BRIEFCASE_ROWS = 5;
 constexpr int SAFE_POCKET_COLS = 2;
 constexpr int SAFE_POCKET_ROWS = 2;
 
@@ -127,6 +127,9 @@ public:
         const Engine::SpriteAtlas* uiAtlas = nullptr
     );
 
+    // Helpers visuais públicos
+    Engine::SpriteRect getSpriteForItemDef(int defId, ItemCategory cat, SynergyElement elem) const;
+
 private:
     bool m_isOpen = false;
     int m_mainGrid[BRIEFCASE_ROWS][BRIEFCASE_COLS];     // Guarda o instanceId ou 0 se vazio
@@ -142,8 +145,7 @@ private:
     void rebuildGridArrays();
     bool areItemsAdjacent(const PlacedItem& a, const PlacedItem& b, int& outAx, int& outAy, int& outBx, int& outBy) const;
 
-    // Helpers visuais
-    Engine::SpriteRect getSpriteForItemDef(int defId, ItemCategory cat, SynergyElement elem) const;
+    // Helpers visuais internos
     void drawRect(uint32_t* buf, int sw, int sh, int x, int y, int w, int h, uint32_t color) const;
     void drawBorder(uint32_t* buf, int sw, int sh, int x, int y, int w, int h, uint32_t color) const;
     void drawGlowingLine(uint32_t* buf, int sw, int sh, int x0, int y0, int x1, int y1, uint32_t color) const;

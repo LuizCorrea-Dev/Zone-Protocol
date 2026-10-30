@@ -4,6 +4,7 @@
 #include "engine/Texture.hpp"
 #include "engine/SpriteAtlas.hpp"
 #include "engine/LightCaster2D.hpp"
+#include "engine/AudioSystem.hpp"
 #include "engine/VFS.hpp"
 #include "engine/Logger.hpp"
 #include "game/ZoneMap.hpp"
@@ -39,42 +40,66 @@ int main(int argc, char* argv[]) {
     try {
         DayDoom::Engine::VFS::get().init(".");
 
-        DayDoom::HAL::DisplayProfile profile = DayDoom::HAL::DisplayProfile::WIDESCREEN_16_10;
-        int initialWinW = 1280;
-        int initialWinH = 800;
+        DayDoom::HAL::DisplayProfile profile = DayDoom::HAL::DisplayProfile::FHD_1080P;
+        int initialWinW = 1920;
+        int initialWinH = 1080;
+        int initialPreset = 2; // Padrão: 1080p Full HD (0=720p 1280x720, 1=Steam Deck 1280x800, 2=1080p 1920x1080)
+        bool startFullscreen = true; // Inicia redimensionado em Fullscreen automaticamente
 
         for (int i = 1; i < argc; ++i) {
             std::string arg = argv[i];
-            if (arg == "--1610" || arg == "--800p") {
-                profile = DayDoom::HAL::DisplayProfile::WIDESCREEN_16_10;
+            if (arg == "--1080p" || arg == "--fhd" || arg == "--max") {
+                initialPreset = 2;
+                profile = DayDoom::HAL::DisplayProfile::FHD_1080P;
+                initialWinW = 1920;
+                initialWinH = 1080;
+            } else if (arg == "--800p" || arg == "--steamdeck" || arg == "--1610") {
+                initialPreset = 1;
+                profile = DayDoom::HAL::DisplayProfile::STEAM_DECK_800P;
                 initialWinW = 1280;
                 initialWinH = 800;
-            } else if (arg == "--hd" || arg == "--720p") {
-                profile = DayDoom::HAL::DisplayProfile::WIDESCREEN_16_9;
+            } else if (arg == "--720p" || arg == "--hd" || arg == "--169") {
+                initialPreset = 0;
+                profile = DayDoom::HAL::DisplayProfile::HD_720P;
                 initialWinW = 1280;
                 initialWinH = 720;
-            } else if (arg == "--169" || arg == "--480p") {
-                profile = DayDoom::HAL::DisplayProfile::WIDESCREEN_16_9;
-                initialWinW = 960;
-                initialWinH = 540;
+            } else if (arg == "--windowed") {
+                startFullscreen = false;
             }
         }
 
         // 1. Camada 0: HAL (Platform e Input)
         DayDoom::HAL::Platform platform;
-        if (!platform.init("ZONE PROTOCOL [v0.1.2] - Roguelike Tatico Top-Down 2D", profile, initialWinW, initialWinH, false)) {
+        if (!platform.init("ZONE PROTOCOL [v0.1.5] - Roguelike Tatico Top-Down 2D", profile, initialWinW, initialWinH, startFullscreen)) {
             ZoneProtocol::Engine::Logger::critical("Falha critica ao inicializar a plataforma SDL2.", "PLATFORM");
             return 1;
         }
+        platform.setResolutionPresetIndex(initialPreset);
 
         DayDoom::HAL::Input input;
 
-        // 2. Camada 1: Engine (Texturas, Iluminação DDA 2D e Folhas de SpriteAtlas)
+        // 2. Camada 1: Engine (Texturas, Audio Dinamico, Iluminação DDA 2D e Folhas de SpriteAtlas)
+        ZoneProtocol::Engine::AudioSystem audioSystem;
+        audioSystem.init();
+
         DayDoom::Engine::TextureManager textures;
         DayDoom::Engine::LightCaster2D lightCaster(platform.getScreenWidth(), platform.getScreenHeight());
 
         ZoneProtocol::Engine::SpriteAtlas entityAtlas;
         entityAtlas.loadFromFile("assets/sprites/sprites_entities.png", true);
+
+        // Novas Folhas de Animação Fluida HD (64x64)
+        ZoneProtocol::Engine::SpriteAtlas playerAnimAtlas;
+        playerAnimAtlas.loadFromFile("assets/sprites/sprites_player_anim.png", true);
+
+        ZoneProtocol::Engine::SpriteAtlas crawlerAnimAtlas;
+        crawlerAnimAtlas.loadFromFile("assets/sprites/sprites_crawler_anim.png", true);
+
+        ZoneProtocol::Engine::SpriteAtlas bruteAnimAtlas;
+        bruteAnimAtlas.loadFromFile("assets/sprites/sprites_brute_anim.png", true);
+
+        ZoneProtocol::Engine::SpriteAtlas shadowAtlas;
+        shadowAtlas.loadFromFile("assets/sprites/sprites_shadows_anim.png", true);
 
         ZoneProtocol::Engine::SpriteAtlas objectsAtlas;
         objectsAtlas.loadFromFile("assets/sprites/sprites_map_objects.png", true);
@@ -119,12 +144,16 @@ int main(int argc, char* argv[]) {
         float totalTime = 0.0f;
         float runTimeSurvived = 0.0f;
         float remainingExtractionTime = 300.0f;
+        float extractionStayTimer = 0.0f;
+        const float EXTRACTION_HOLD_DURATION = 4.0f;
         std::string lootBanner = "";
         float lootBannerTimer = 0.0f;
 
         auto startNewDeployment = [&](int sectorIdx) {
             ZP_LOG_SCRIPT("LoadingScreen::ShowEx - Start");
             ZP_LOG_SCRIPT("LoadingScreen::SetBackgroundImage - Background: assets/sprites/Loading Screen.png");
+            audioSystem.stopAll();
+            audioSystem.resetMissionCursors();
             currentSeed += 733u;
             DayDoom::Game::ZoneConfig cfg{ (sectorIdx % 3) + 1, 0.55f, false };
             zoneMap.generateProceduralZone(currentSeed, cfg);
@@ -133,6 +162,7 @@ int main(int argc, char* argv[]) {
             player.getCamera().setAngle(zoneMap.getSpawnAngle());
             combat.spawnMutantsForZone(zoneMap, currentSeed, 25 + (sectorIdx % 3) * 6);
             remainingExtractionTime = 300.0f;
+            extractionStayTimer = 0.0f;
             runTimeSurvived = 0.0f;
             loadingTimer = 0.0f;
             currentTipIndex++;
@@ -149,7 +179,32 @@ int main(int argc, char* argv[]) {
         ZP_LOG_SCRIPT("LoadingScreen::ShowEx - End");
         ZP_LOG_SCRIPT("[MissionGameplay] OnInit - Client Ready");
 
-        ZoneProtocol::Engine::Logger::info("Controles: MOUSE Mira & Tiro | WASD Movimento | [F] Saquear/Porta | [TAB/I] Maleta 6x4 | [R] Girar Item | [B] Bunker Hub | [K] Testar Tela de Morte", "GAME");
+        auto notifyResolutionChanged = [&]() {
+            hud.setScreenDimensions(platform.getScreenWidth(), platform.getScreenHeight());
+            lootBanner = "RESOLUCAO: " + std::to_string(platform.getScreenWidth()) + "X" +
+                         std::to_string(platform.getScreenHeight());
+            lootBannerTimer = 2.8f;
+            bunker.statusBanner = lootBanner;
+        };
+
+        auto applyVideoAction = [&](int act) {
+            if (act == 1) { // 720p
+                platform.setResolutionPresetIndex(0);
+                notifyResolutionChanged();
+            } else if (act == 2) { // 1280x800 Steam Deck
+                platform.setResolutionPresetIndex(1);
+                notifyResolutionChanged();
+            } else if (act == 3) { // 1080p Full HD
+                platform.setResolutionPresetIndex(2);
+                notifyResolutionChanged();
+            } else if (act == 4) { // Toggle Fullscreen
+                platform.toggleFullscreen();
+            } else if (act == 5) { // Fechar Menu
+                hud.setVideoMenuOpen(false);
+            }
+        };
+
+        ZoneProtocol::Engine::Logger::info("Controles: MOUSE Mira & Tiro | WASD Movimento | [O / F10] Menu de Resolucao (720p / Steam Deck 1280x800 / 1080p) | [-/+] Trocar Resolucao | [TAB/I] Maleta 8x4 | [B] Bunker Hub", "GAME");
 
         // 4. Loop Principal de Jogo a 60 FPS
         while (platform.isRunning()) {
@@ -181,6 +236,7 @@ int main(int argc, char* argv[]) {
             while (SDL_PollEvent(&event)) {
                 if (event.type == SDL_QUIT ||
                     (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE)) {
+                    audioSystem.shutdown();
                     platform.shutdown();
                     ZoneProtocol::Engine::Logger::shutdown();
                     return 0;
@@ -188,19 +244,31 @@ int main(int argc, char* argv[]) {
                 if (event.type == SDL_KEYDOWN) {
                     SDL_Keycode sym = event.key.keysym.sym;
                     if (sym == SDLK_ESCAPE) {
-                        if (briefcase.isOpen()) {
+                        if (hud.isVideoMenuOpen()) {
+                            hud.setVideoMenuOpen(false);
+                        } else if (briefcase.isOpen()) {
                             briefcase.setOpen(false);
                         } else if (gameState == GameLoopState::BUNKER_HUB) {
                             gameState = GameLoopState::IN_ZONE;
                         } else {
+                            audioSystem.shutdown();
                             platform.shutdown();
                             ZoneProtocol::Engine::Logger::shutdown();
                             return 0;
                         }
                     } else if (sym == SDLK_F11) {
                         platform.toggleFullscreen();
+                    } else if (sym == SDLK_o || sym == SDLK_F10) {
+                        hud.toggleVideoMenu();
+                    } else if (sym == SDLK_MINUS || sym == SDLK_KP_MINUS || sym == SDLK_PAGEDOWN) {
+                        platform.stepResolutionPreset(-1);
+                        notifyResolutionChanged();
+                    } else if (sym == SDLK_EQUALS || sym == SDLK_PLUS || sym == SDLK_KP_PLUS || sym == SDLK_PAGEUP) {
+                        platform.stepResolutionPreset(+1);
+                        notifyResolutionChanged();
                     } else if (sym == SDLK_TAB || sym == SDLK_i) {
                         if (gameState == GameLoopState::IN_ZONE || gameState == GameLoopState::BUNKER_HUB) {
+                            hud.setVideoMenuOpen(false);
                             briefcase.toggle();
                         }
                     } else if (sym == SDLK_r) {
@@ -209,7 +277,9 @@ int main(int argc, char* argv[]) {
                         }
                     } else if (sym == SDLK_b) {
                         briefcase.setOpen(false);
+                        hud.setVideoMenuOpen(false);
                         if (gameState == GameLoopState::IN_ZONE) {
+                            audioSystem.stopAll();
                             bunker.credits += combat.getDataPointsEarned();
                             bunker.statusBanner = "OPERADOR RETORNOU AO BUNKER COM SUCESSO!";
                             gameState = GameLoopState::BUNKER_HUB;
@@ -219,6 +289,7 @@ int main(int argc, char* argv[]) {
                     } else if (sym == SDLK_e) {
                         if (gameState == GameLoopState::IN_ZONE &&
                             zoneMap.isNearExtraction(player.getCamera().pos.x, player.getCamera().pos.y)) {
+                            audioSystem.stopAll();
                             bunker.credits += 300 + combat.getDataPointsEarned();
                             bunker.scrap += 25;
                             bunker.statusBanner = "EXTRACAO COMPLETA! +300 CREDITS & +25 SCRAP";
@@ -263,6 +334,7 @@ int main(int argc, char* argv[]) {
             uint32_t* screenBuffer = platform.getScreenBuffer();
             int screenW = platform.getScreenWidth();
             int screenH = platform.getScreenHeight();
+            hud.setScreenDimensions(screenW, screenH);
 
             // Atualiza telemetria em tempo real para captura imediata em qualquer erro/crash
             {
@@ -328,6 +400,8 @@ int main(int argc, char* argv[]) {
                     ZP_LOG_SCRIPT("LoadingScreen::Hide - Start");
                     ZP_LOG_SCRIPT("LoadingScreen::EndLoading - Sector deployment active (IN_ZONE)");
                     ZP_LOG_SCRIPT("LoadingScreen::Hide - End");
+                    audioSystem.resetMissionCursors();
+                    audioSystem.playTrack(ZoneProtocol::Engine::AudioTrack::ZONE_BACKGROUND, true);
                     gameState = GameLoopState::IN_ZONE;
                 }
 
@@ -354,6 +428,7 @@ int main(int argc, char* argv[]) {
                 );
 
                 if ((btnHovered && clickedLeft) || pressedEnter) {
+                    audioSystem.stopAll();
                     bunker.credits += combat.getDataPointsEarned();
                     bunker.statusBanner = "OPERADOR EVACUADO DE EMERGENCIA. ITENS DO SAFE POCKET SALVOS!";
                     player.healFull();
@@ -368,6 +443,10 @@ int main(int argc, char* argv[]) {
             // ESTADO 3: ECRÃ DO BUNKER E MERCADO NEGRO (screen_bunker_hub.png)
             // =====================================================================
             if (gameState == GameLoopState::BUNKER_HUB) {
+                if (audioSystem.isPlaying()) {
+                    audioSystem.stopAll();
+                }
+
                 int hoveredStation = hud.renderBunkerHub(
                     screenBuffer,
                     bgBunkerAtlas,
@@ -377,6 +456,15 @@ int main(int argc, char* argv[]) {
                     logMy,
                     totalTime
                 );
+
+                if (hud.isVideoMenuOpen()) {
+                    int menuAct = hud.renderVideoMenu(screenBuffer, logMx, logMy, platform.getFPS(), platform.isFullscreen());
+                    if (clickedLeft && menuAct > 0) {
+                        applyVideoAction(menuAct);
+                    }
+                    platform.endFrame();
+                    continue;
+                }
 
                 if (briefcase.isOpen()) {
                     if (clickedLeft || clickedRight) {
@@ -410,7 +498,7 @@ int main(int argc, char* argv[]) {
                     } else if (triggeredStation == 3) {
                         // BANCADA DE ARMAS & MALETA
                         briefcase.setOpen(true);
-                        bunker.statusBanner = "BANCADA: ORGANIZE OS ARTEFATOS E ARMAS NA MALETA 6X4!";
+                        bunker.statusBanner = "BANCADA: ORGANIZE OS ARTEFATOS E ARMAS NA MALETA 8X4!";
                     } else if (triggeredStation == 4) {
                         // TERMINAL DE INFILTRAÇÃO
                         bunker.selectedSectorIndex = (bunker.selectedSectorIndex + 1) % 3;
@@ -452,9 +540,58 @@ int main(int argc, char* argv[]) {
                 remainingExtractionTime -= deltaTime;
             }
 
+            float curPx = player.getCamera().pos.x;
+            float curPy = player.getCamera().pos.y;
+            bool inExtractionZone = zoneMap.isNearExtraction(curPx, curPy, 4.5f);
+
+            // Gerenciamento da Contagem Regressiva de Evacuação na Área de Extração
+            if (inExtractionZone) {
+                extractionStayTimer += deltaTime;
+            } else {
+                extractionStayTimer = 0.0f;
+            }
+
+            bool executeExtraction = false;
+            std::string extractMsg;
+
+            // Caso 1: Jogador aguardou na zona de extração até o timer de evacuação zerar (4 segundos)
+            if (inExtractionZone && extractionStayTimer >= EXTRACTION_HOLD_DURATION) {
+                executeExtraction = true;
+                extractMsg = "EVACUACAO REALIZADA COM SUCESSO! HELICOPTERO RESGATOU O OPERADOR (+300 CREDITS & +25 SCRAP)";
+            }
+
+            // Caso 2: O timer de extração da Zona esgotou (remainingExtractionTime <= 0.0f)
+            if (remainingExtractionTime <= 0.0f) {
+                if (inExtractionZone) {
+                    executeExtraction = true;
+                    extractMsg = "TEMPO LIMITE ESGOTADO - EXTRACAO DE EMERGENCIA BEM-SUCEDIDA! (+300 CREDITS & +25 SCRAP)";
+                } else {
+                    // Ficou sem tempo fora da zona de extração: Radiação letal consome o operador!
+                    briefcase.clearMainBriefcaseOnDeath();
+                    audioSystem.playTrack(ZoneProtocol::Engine::AudioTrack::DEATH_SCREEN, true);
+                    ZoneProtocol::Engine::Logger::warn("Tempo esgotado fora da LZ! Operador abatido pela radiacao da Zona.", "GAME");
+                    gameState = GameLoopState::DEATH_SCREEN;
+                    platform.endFrame();
+                    continue;
+                }
+            }
+
+            if (executeExtraction) {
+                audioSystem.stopAll();
+                bunker.credits += 300 + combat.getDataPointsEarned();
+                bunker.scrap += 25;
+                bunker.statusBanner = extractMsg;
+                gameState = GameLoopState::BUNKER_HUB;
+                ZoneProtocol::Engine::Logger::info("Operador extraido com sucesso para o Bunker Hub!", "GAME");
+                continue;
+            }
+
             zoneMap.update(deltaTime);
 
-            if (briefcase.isOpen()) {
+            if (hud.isVideoMenuOpen()) {
+                // Jogo pausado durante alteração no menu de vídeo
+            } else if (briefcase.isOpen()) {
+                combat.notifyTriggerReleased(&audioSystem);
                 if (clickedLeft || clickedRight) {
                     briefcase.handleMouseClick(logMx, logMy, screenW, screenH, clickedRight);
                 }
@@ -470,21 +607,36 @@ int main(int argc, char* argv[]) {
 
                 player.update(deltaTime, input, zoneMap, screenW, screenH);
 
-                // Disparo de Projéteis com Sinergias da Maleta no clique esquerdo do rato
-                if (input.isMouseButtonDown(SDL_BUTTON_LEFT)) {
-                    combat.fireWeapon(player.getCamera().pos, player.getCamera().dir, briefcase.getModifiers());
+                // Disparo de Projéteis com AK-47: Tiro único vs Rajada contínua com última bala ressoando
+                bool isMouseDown = input.isMouseButtonDown(SDL_BUTTON_LEFT);
+                if (isMouseDown) {
+                    combat.fireWeapon(player.getCamera().pos, player.getCamera().dir, briefcase.getModifiers(), &audioSystem);
                     player.performAttack(&zoneMap);
+                } else {
+                    combat.notifyTriggerReleased(&audioSystem);
                 }
 
-                combat.update(deltaTime, zoneMap, player, briefcase.getModifiers());
+                combat.update(deltaTime, zoneMap, player, briefcase.getModifiers(), &audioSystem);
 
                 // Verifica se o Operador morreu na Zona
                 if (player.getHealth() <= 0.0f) {
                     briefcase.clearMainBriefcaseOnDeath();
+                    audioSystem.playTrack(ZoneProtocol::Engine::AudioTrack::DEATH_SCREEN, true);
                     ZoneProtocol::Engine::Logger::warn("Operador abatido na Zona! Exibindo Ecra de Morte.", "GAME");
                     gameState = GameLoopState::DEATH_SCREEN;
                     platform.endFrame();
                     continue;
+                }
+            }
+
+            // Controle dinamico de audio na Zona com Crossfade Suave (Extracao -> Bunker na Missao -> Background)
+            {
+                if (zoneMap.isNearExtraction(curPx, curPy, 8.5f)) {
+                    audioSystem.playTrack(ZoneProtocol::Engine::AudioTrack::EXTRACTION_SOUND, false, 1.2f);
+                } else if (zoneMap.isInsideMissionBunker(curPx, curPy)) {
+                    audioSystem.playTrack(ZoneProtocol::Engine::AudioTrack::MISSION_BUNKER, false, 1.2f);
+                } else {
+                    audioSystem.playTrack(ZoneProtocol::Engine::AudioTrack::ZONE_BACKGROUND, false, 1.2f);
                 }
             }
 
@@ -496,7 +648,7 @@ int main(int argc, char* argv[]) {
             bool isDoorOpen = nearDoor && zoneMap.isDoorOpen(targetCellX, targetCellY);
             bool nearCrate = combat.isNearClosedCrate(player.getCamera().pos);
 
-            // 1. Renderizador Principal do Mundo (Pisos e Paredes do tileset_walls_floors.png + Player do sprites_entities.png)
+            // 1. Renderizador Principal do Mundo (Pisos e Paredes do tileset_walls_floors.png + Player animado de sprites_player_anim.png)
             worldView.render(
                 screenBuffer,
                 screenW,
@@ -506,10 +658,11 @@ int main(int argc, char* argv[]) {
                 textures,
                 totalTime,
                 &entityAtlas,
-                &objectsAtlas
+                &objectsAtlas,
+                &playerAnimAtlas
             );
 
-            // 2. Renderizador de Combate, Mutantes, Olhos Vermelhos no Escuro, Caixas de Loot e Projéteis
+            // 2. Renderizador de Combate, Mutantes animados, Olhos Vermelhos no Escuro, Caixas de Loot e Projéteis
             combat.render(
                 screenBuffer,
                 screenW,
@@ -518,10 +671,14 @@ int main(int argc, char* argv[]) {
                 player,
                 entityAtlas,
                 &objectsAtlas,
-                worldView.getTileSize(screenW)
+                worldView.getTileSize(screenW),
+                &crawlerAnimAtlas,
+                &bruteAnimAtlas,
+                &shadowAtlas
             );
 
             // 3. HUD de Sobrevivência e Cronômetro de Extração
+            float evacuationCountdown = inExtractionZone ? std::max(0.0f, EXTRACTION_HOLD_DURATION - extractionStayTimer) : -1.0f;
             hud.render(
                 screenBuffer,
                 player,
@@ -534,7 +691,8 @@ int main(int argc, char* argv[]) {
                 isDoorOpen,
                 nearCrate,
                 lootBanner,
-                combat.getKilledCount()
+                combat.getKilledCount(),
+                evacuationCountdown
             );
 
             // 4. Maleta Tática 6x4 + Safe Pocket 2x2 + Raios de Sinergia (se aberta com TAB ou I)
@@ -549,11 +707,20 @@ int main(int argc, char* argv[]) {
                 );
             }
 
+            // 5. Menu Tático de Opções de Vídeo (se aberto com O / F10)
+            if (hud.isVideoMenuOpen()) {
+                int menuAct = hud.renderVideoMenu(screenBuffer, logMx, logMy, platform.getFPS(), platform.isFullscreen());
+                if (clickedLeft && menuAct > 0) {
+                    applyVideoAction(menuAct);
+                }
+            }
+
             platform.endFrame();
         }
 
+        audioSystem.shutdown();
         platform.shutdown();
-        ZoneProtocol::Engine::Logger::info("Sessao de Zone Protocol v0.1.2 finalizada com sucesso.", "MAIN");
+        ZoneProtocol::Engine::Logger::info("Sessao de Zone Protocol v0.1.5 finalizada com sucesso.", "MAIN");
         ZoneProtocol::Engine::Logger::shutdown();
         return 0;
 

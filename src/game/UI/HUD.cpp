@@ -16,71 +16,123 @@ void HUD::setScreenDimensions(int w, int h) {
     m_screenHeight = h;
 }
 
-static uint16_t getHUDGlyph(char c) {
-    switch (c) {
-        case '0': return 0b111110011001111;
-        case '1': return 0b010010010010010;
-        case '2': return 0b111001111100111;
-        case '3': return 0b111001011001111;
-        case '4': return 0b101101111001001;
-        case '5': return 0b111100111001111;
-        case '6': return 0b111100111101111;
-        case '7': return 0b111001001010010;
-        case '8': return 0b111101111101111;
-        case '9': return 0b111101111001111;
-        case ':': return 0b000010000010000;
-        case '+': return 0b000010111010000;
-        case '/': return 0b001001010100100;
-        case '(': return 0b001010010010001;
-        case ')': return 0b100010010010100;
-        case '&': return 0b010101010101011;
-        case 'A': return 0b010101111101101;
-        case 'B': return 0b110101110101110;
-        case 'C': return 0b011100100100011;
-        case 'D': return 0b110101101101110;
-        case 'E': return 0b111100110100111;
-        case 'F': return 0b111100110100100;
-        case 'G': return 0b011100101101011;
-        case 'H': return 0b101101111101101;
-        case 'I': return 0b111010010010111;
-        case 'J': return 0b001001001101010;
-        case 'K': return 0b101101110101101;
-        case 'L': return 0b100100100100111;
-        case 'M': return 0b101111101101101;
-        case 'N': return 0b101111101101101;
-        case 'O': return 0b111101101101111;
-        case 'P': return 0b111101111100100;
-        case 'Q': return 0b011101101011001;
-        case 'R': return 0b110101110101101;
-        case 'S': return 0b011100010001110;
-        case 'T': return 0b111010010010010;
-        case 'U': return 0b101101101101111;
-        case 'V': return 0b101101101010010;
-        case 'W': return 0b101101101111101;
-        case 'X': return 0b101101010101101;
-        case 'Y': return 0b101101010010010;
-        case 'Z': return 0b111001010100111;
-        case '%': return 0b101001010100101;
-        case '[': return 0b011010010010011;
-        case ']': return 0b110010010010110;
-        case '-': return 0b000000111000000;
-        case '.': return 0b000000000000010;
-        case ',': return 0b000000000010100;
-        case '!': return 0b010010010000010;
-        case ' ': return 0;
-        default:  return 0b111101101101111;
-    }
-}
+static const uint8_t GLYPH_5X7[128][7] = {
+    // 0-31: whitespace/null
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0}, {0,0,0,0,0,0,0},
+    // 32 ' '
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    // 33 '!'
+    {0x04, 0x04, 0x04, 0x04, 0x00, 0x04, 0x00},
+    // 34 '"'
+    {0x0A, 0x0A, 0x0A, 0x00, 0x00, 0x00, 0x00},
+    // 35 '#'
+    {0x0A, 0x1F, 0x0A, 0x0A, 0x1F, 0x0A, 0x00},
+    // 36 '$'
+    {0x04, 0x0F, 0x14, 0x0E, 0x05, 0x1E, 0x04},
+    // 37 '%'
+    {0x18, 0x19, 0x02, 0x04, 0x08, 0x13, 0x03},
+    // 38 '&'
+    {0x08, 0x14, 0x14, 0x08, 0x15, 0x12, 0x0D},
+    // 39 '\''
+    {0x04, 0x04, 0x02, 0x00, 0x00, 0x00, 0x00},
+    // 40 '('
+    {0x02, 0x04, 0x08, 0x08, 0x08, 0x04, 0x02},
+    // 41 ')'
+    {0x08, 0x04, 0x02, 0x02, 0x02, 0x04, 0x08},
+    // 42 '*'
+    {0x00, 0x04, 0x15, 0x0E, 0x15, 0x04, 0x00},
+    // 43 '+'
+    {0x00, 0x04, 0x04, 0x1F, 0x04, 0x04, 0x00},
+    // 44 ','
+    {0x00, 0x00, 0x00, 0x00, 0x06, 0x06, 0x04},
+    // 45 '-'
+    {0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00},
+    // 46 '.'
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x06},
+    // 47 '/'
+    {0x01, 0x02, 0x04, 0x08, 0x10, 0x00, 0x00},
+    // 48-57 '0'-'9'
+    {0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E}, // 0
+    {0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E}, // 1
+    {0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F}, // 2
+    {0x1F, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0E}, // 3
+    {0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02}, // 4
+    {0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E}, // 5
+    {0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E}, // 6
+    {0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08}, // 7
+    {0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E}, // 8
+    {0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C}, // 9
+    // 58 ':'
+    {0x00, 0x06, 0x06, 0x00, 0x06, 0x06, 0x00},
+    // 59 ';'
+    {0x00, 0x06, 0x06, 0x00, 0x06, 0x06, 0x04},
+    // 60 '<'
+    {0x02, 0x04, 0x08, 0x10, 0x08, 0x04, 0x02},
+    // 61 '='
+    {0x00, 0x1F, 0x00, 0x1F, 0x00, 0x00, 0x00},
+    // 62 '>'
+    {0x08, 0x04, 0x02, 0x01, 0x02, 0x04, 0x08},
+    // 63 '?'
+    {0x0E, 0x11, 0x01, 0x02, 0x04, 0x00, 0x04},
+    // 64 '@'
+    {0x0E, 0x11, 0x01, 0x0D, 0x15, 0x15, 0x0E},
+    // 65-90 'A'-'Z'
+    {0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}, // A
+    {0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E}, // B
+    {0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E}, // C
+    {0x1C, 0x12, 0x11, 0x11, 0x11, 0x12, 0x1C}, // D
+    {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F}, // E
+    {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10}, // F
+    {0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0F}, // G
+    {0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}, // H
+    {0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E}, // I
+    {0x07, 0x02, 0x02, 0x02, 0x02, 0x12, 0x0C}, // J
+    {0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11}, // K
+    {0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F}, // L
+    {0x11, 0x1B, 0x15, 0x15, 0x11, 0x11, 0x11}, // M
+    {0x11, 0x11, 0x19, 0x15, 0x13, 0x11, 0x11}, // N
+    {0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}, // O
+    {0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10}, // P
+    {0x0E, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0D}, // Q
+    {0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11}, // R
+    {0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E}, // S
+    {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}, // T
+    {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}, // U
+    {0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04}, // V
+    {0x11, 0x11, 0x11, 0x15, 0x15, 0x15, 0x0A}, // W
+    {0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11}, // X
+    {0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04}, // Y
+    {0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F}, // Z
+    // 91 '['
+    {0x0E, 0x08, 0x08, 0x08, 0x08, 0x08, 0x0E},
+    // 92 '\\'
+    {0x10, 0x08, 0x04, 0x02, 0x01, 0x00, 0x00},
+    // 93 ']'
+    {0x0E, 0x02, 0x02, 0x02, 0x02, 0x02, 0x0E},
+    // 94 '^'
+    {0x04, 0x0A, 0x11, 0x00, 0x00, 0x00, 0x00},
+    // 95 '_'
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F}
+};
 
 void HUD::drawChar(uint32_t* buf, int x, int y, char c, uint32_t color, int scale) {
     if (c >= 'a' && c <= 'z') c = c - 'a' + 'A';
-    uint16_t glyph = getHUDGlyph(c);
-    if (glyph == 0) return;
+    uint8_t uc = static_cast<uint8_t>(c);
+    if (uc >= 128) return;
 
-    for (int row = 0; row < 5; ++row) {
-        for (int col = 0; col < 3; ++col) {
-            int bit = (row * 3) + col;
-            if ((glyph >> (14 - bit)) & 1) {
+    for (int row = 0; row < 7; ++row) {
+        uint8_t rowBits = GLYPH_5X7[uc][row];
+        if (rowBits == 0) continue;
+
+        for (int col = 0; col < 5; ++col) {
+            if ((rowBits >> (4 - col)) & 1) {
                 for (int sy = 0; sy < scale; ++sy) {
                     for (int sx = 0; sx < scale; ++sx) {
                         int px = x + col * scale + sx;
@@ -99,7 +151,7 @@ void HUD::drawText(uint32_t* buf, int x, int y, const std::string& text, uint32_
     int curX = x;
     for (char c : text) {
         drawChar(buf, curX, y, c, color, scale);
-        curX += 4 * scale;
+        curX += 6 * scale; // 5 colunas + 1 de espaçamento para leitura perfeita
     }
 }
 
@@ -145,48 +197,49 @@ void HUD::render(
     bool isDoorOpen,
     bool nearLootCrate,
     const std::string& lootBanner,
-    int mutantsKilled
+    int mutantsKilled,
+    float evacuationCountdown
 ) {
-    const int s = (m_screenWidth >= 1000) ? 2 : 1;
+    const int s = (m_screenWidth >= 1600) ? 2 : 1;
 
     // 1. Logo Militar Estilizado "ZONE PROTOCOL" e Cabeçalho de Setor no canto superior esquerdo
     const char* sectorName = map.getSectorName(player.getCamera().pos.x, player.getCamera().pos.y);
     drawSectorHeader(screenBuffer, sectorName, fps);
 
-    // 2. Cronômetro de Extração Tática Militar no canto superior direito (EXTRACTION TIMER: MM:SS)
-    bool isNearExt = map.isNearExtraction(player.getCamera().pos.x, player.getCamera().pos.y);
-    drawExtractionTimer(screenBuffer, remainingExtractionTime, isNearExt);
-
-    // 3. Status da Maleta de Extração abaixo do cabeçalho
+    // 2. Status da Maleta de Extração no canto superior esquerdo
     drawBriefcaseStatus(screenBuffer, player);
 
-    // 4. Painel de Telemetria e Vitais de Sobrevivência (HP, ST, AMMO, RADS) no canto inferior direito
+    // 3. Painel Integrado Tático Militar no canto inferior direito:
+    // Bloco Superior Acoplado: EXTRACTION TIMER: MM:SS
+    // Bloco Inferior: HP, ST, AH, RADS, AMMO 30x, KILLS e Medidores Verticais
+    bool isNearExtraction = map.isNearExtraction(player.getCamera().pos.x, player.getCamera().pos.y, 4.5f);
+    drawExtractionTimer(screenBuffer, remainingExtractionTime, isNearExtraction, evacuationCountdown);
     drawSurvivalBars(screenBuffer, player, mutantsKilled);
 
-    // 5. Prompt de Interação com Portas ou Caixas de Loot
+    // 4. Prompt de Interação com Portas ou Caixas de Loot
     if (nearLootCrate) {
         std::string prompt = "[F] SAQUEAR CAIXA MILITAR";
-        int pw = static_cast<int>(prompt.length()) * 4 * s;
+        int pw = static_cast<int>(prompt.length()) * 6 * s;
         int px = (m_screenWidth - pw) / 2;
-        drawRect(screenBuffer, px - 6 * s, m_screenHeight - 72 * s, pw + 12 * s, 13 * s, 0xD8142212);
-        drawBorder(screenBuffer, px - 6 * s, m_screenHeight - 72 * s, pw + 12 * s, 13 * s, 0xFF50FF64);
+        drawRect(screenBuffer, px - 8 * s, m_screenHeight - 72 * s, pw + 16 * s, 16 * s, 0xD8142212);
+        drawBorder(screenBuffer, px - 8 * s, m_screenHeight - 72 * s, pw + 16 * s, 16 * s, 0xFF50FF64);
         drawText(screenBuffer, px, m_screenHeight - 68 * s, prompt, 0xFF88FF99, s);
     } else if (nearDoor) {
         std::string prompt = isDoorOpen ? "[F] FECHAR PORTA" : "[F] ABRIR PORTA";
-        int pw = static_cast<int>(prompt.length()) * 4 * s;
+        int pw = static_cast<int>(prompt.length()) * 6 * s;
         int px = (m_screenWidth - pw) / 2;
-        drawRect(screenBuffer, px - 6 * s, m_screenHeight - 56 * s, pw + 12 * s, 13 * s, 0xD00F1722);
-        drawBorder(screenBuffer, px - 6 * s, m_screenHeight - 56 * s, pw + 12 * s, 13 * s, 0xFF00FF88);
+        drawRect(screenBuffer, px - 8 * s, m_screenHeight - 56 * s, pw + 16 * s, 16 * s, 0xD00F1722);
+        drawBorder(screenBuffer, px - 8 * s, m_screenHeight - 56 * s, pw + 16 * s, 16 * s, 0xFF00FF88);
         drawText(screenBuffer, px, m_screenHeight - 52 * s, prompt, 0xFFFFFFFF, s);
     }
 
-    // Banner temporário de Loot saqueado
+    // Banner temporário de Loot ou mudança de resolução
     if (!lootBanner.empty()) {
-        int bw = static_cast<int>(lootBanner.length()) * 4 * s;
+        int bw = static_cast<int>(lootBanner.length()) * 6 * s;
         int bx = (m_screenWidth - bw) / 2;
-        drawRect(screenBuffer, bx - 8 * s, 60 * s, bw + 16 * s, 14 * s, 0xE60C1E12);
-        drawBorder(screenBuffer, bx - 8 * s, 60 * s, bw + 16 * s, 14 * s, 0xFF50FF64);
-        drawText(screenBuffer, bx, 64 * s, lootBanner, 0xFF78FF96, s);
+        drawRect(screenBuffer, bx - 10 * s, 50 * s, bw + 20 * s, 18 * s, 0xE60C1E12);
+        drawBorder(screenBuffer, bx - 10 * s, 50 * s, bw + 20 * s, 18 * s, 0xFF50FF64);
+        drawText(screenBuffer, bx, 54 * s, lootBanner, 0xFF78FF96, s);
     }
 
     // 6. Retículo Tático / Crosshair de Alta Precisão centralizado no cursor do mouse
@@ -194,49 +247,65 @@ void HUD::render(
 }
 
 void HUD::drawSectorHeader(uint32_t* screenBuffer, const char* sectorName, float fps) {
-    const int s = (m_screenWidth >= 1000) ? 2 : 1;
-    drawRect(screenBuffer, 0, 0, m_screenWidth, 15 * s, 0xD8080C10);
-    drawRect(screenBuffer, 0, 15 * s, m_screenWidth, 1 * s, 0xFF182430);
+    const int s = (m_screenWidth >= 1600) ? 2 : 1;
+    drawRect(screenBuffer, 0, 0, m_screenWidth, 18 * s, 0xD8080C10);
+    drawRect(screenBuffer, 0, 18 * s, m_screenWidth, 1 * s, 0xFF182430);
 
-    drawText(screenBuffer, 10 * s, 4 * s, "ZONE PROTOCOL [v0.1.2]", 0xFF7D9E74, s);
+    drawText(screenBuffer, 10 * s, 5 * s, "ZONE PROTOCOL [v0.1.3]", 0xFF7D9E74, s);
 
     if (sectorName) {
-        drawText(screenBuffer, 115 * s, 4 * s, sectorName, 0xFF4DEEEA, s);
+        drawText(screenBuffer, 160 * s, 5 * s, sectorName, 0xFF4DEEEA, s);
     }
 
-    drawText(screenBuffer, 285 * s, 4 * s, "[TAB] MALETA  [B] BUNKER", 0xFF98B098, s);
+    drawText(screenBuffer, 380 * s, 5 * s, "[TAB] MALETA  [B] BUNKER  [O] VIDEO", 0xFF98B098, s);
 
     char fpsBuf[16];
     std::snprintf(fpsBuf, sizeof(fpsBuf), "%d FPS", static_cast<int>(fps));
-    int fpsX = m_screenWidth - static_cast<int>(std::string(fpsBuf).length()) * 4 * s - 10 * s;
-    drawText(screenBuffer, fpsX, 4 * s, fpsBuf, 0xFF00FF88, s);
+    int fpsX = m_screenWidth - static_cast<int>(std::string(fpsBuf).length()) * 6 * s - 10 * s;
+    drawText(screenBuffer, fpsX, 5 * s, fpsBuf, 0xFF00FF88, s);
 }
 
-void HUD::drawExtractionTimer(uint32_t* screenBuffer, float remainingTime, bool isNearExtraction) {
+void HUD::drawExtractionTimer(uint32_t* screenBuffer, float remainingTime, bool isNearExtraction, float evacuationCountdown) {
     const int s = (m_screenWidth >= 1000) ? 2 : 1;
     int totalSec = std::max(0, static_cast<int>(remainingTime));
     int minutes = totalSec / 60;
     int seconds = totalSec % 60;
 
-    char timerStr[48];
-    std::snprintf(timerStr, sizeof(timerStr), "EXTRACTION TIMER: %02d:%02d", minutes, seconds);
+    // Conforme o layout de referência (media_1793306523730_4b704918.png):
+    // O painel do Timer fica acoplado imediatamente acima do bloco de vitais no canto inferior direito!
+    int statsPanelW = 290 * s;
+    int statsPanelH = 60 * s;
+    int panelMargin = 10 * s;
+    int statsPanelX = m_screenWidth - statsPanelW - panelMargin;
+    int statsPanelY = m_screenHeight - statsPanelH - panelMargin;
 
-    int textLen = static_cast<int>(std::string(timerStr).length()) * 4 * s;
-    int boxW = textLen + 16 * s;
-    int boxH = 18 * s;
-    int boxX = m_screenWidth - boxW - 10 * s;
-    int boxY = 20 * s;
+    int timerBoxW = 196 * s;
+    int timerBoxH = 22 * s;
+    int timerBoxX = statsPanelX + statsPanelW - timerBoxW;
+    int timerBoxY = statsPanelY - timerBoxH + (2 * s); // Sobrepõe a borda superior para conectar os chassis
 
-    uint32_t timerColor = (totalSec <= 60) ? 0xFFFF3333 : 0xFF00FF88;
-    uint32_t borderColor = (totalSec <= 60) ? 0xFFFF4444 : 0xFF2A5038;
+    // Chassi Metálico Enferrujado do Timer
+    drawRect(screenBuffer, timerBoxX, timerBoxY, timerBoxW, timerBoxH, 0xD80D1410);
+    drawBorder(screenBuffer, timerBoxX, timerBoxY, timerBoxW, timerBoxH, 0xFF4D4032);
+    drawBorder(screenBuffer, timerBoxX + 1 * s, timerBoxY + 1 * s, timerBoxW - 2 * s, timerBoxH - 2 * s, 0xFF243022);
 
-    drawRect(screenBuffer, boxX, boxY, boxW, boxH, 0xD80A120E);
-    drawBorder(screenBuffer, boxX, boxY, boxW, boxH, borderColor);
-    drawBorder(screenBuffer, boxX + 1 * s, boxY + 1 * s, boxW - 2 * s, boxH - 2 * s, 0xFF14241A);
-    drawText(screenBuffer, boxX + 8 * s, boxY + 6 * s, timerStr, timerColor, s);
+    // Texto: "EXTRACTION TIMER: " em Verde Oliva / Tático
+    drawText(screenBuffer, timerBoxX + 12 * s, timerBoxY + 7 * s, "EXTRACTION TIMER:", 0xFF719357, s);
+
+    // Dígitos "MM:SS" em Laranja / Âmbar Retro
+    char timeDigits[16];
+    std::snprintf(timeDigits, sizeof(timeDigits), "%02d:%02d", minutes, seconds);
+    uint32_t digitsColor = (totalSec <= 60) ? 0xFFFF3333 : 0xFFC1A25C;
+    drawText(screenBuffer, timerBoxX + timerBoxW - 46 * s, timerBoxY + 7 * s, timeDigits, digitsColor, s);
 
     if (isNearExtraction) {
-        std::string alert = "[ ZONA DE EXTRACAO ATIVA - PRESSIONE [E] OU [B] PARA EXTRAIR AO BUNKER ]";
+        char alertBuf[128];
+        if (evacuationCountdown >= 0.0f) {
+            std::snprintf(alertBuf, sizeof(alertBuf), "[ ZONA DE EXTRACAO ATIVA - EVACUANDO EM %.1fs | PRESSIONE [E] ]", evacuationCountdown);
+        } else {
+            std::snprintf(alertBuf, sizeof(alertBuf), "[ ZONA DE EXTRACAO ATIVA - PRESSIONE [E] OU [B] PARA EXTRAIR ]");
+        }
+        std::string alert(alertBuf);
         int alertW = static_cast<int>(alert.length()) * 4 * s;
         int alertX = (m_screenWidth - alertW) / 2;
         drawRect(screenBuffer, alertX - 6 * s, 42 * s, alertW + 12 * s, 13 * s, 0xD8003A12);
@@ -250,7 +319,7 @@ void HUD::drawBriefcaseStatus(uint32_t* screenBuffer, const Player& player) {
     int boxW = 94 * s;
     int boxH = 16 * s;
     int boxX = 10 * s;
-    int boxY = 20 * s;
+    int boxY = 24 * s;
 
     bool hasCase = player.hasExtractionCase();
     uint32_t caseColor = hasCase ? 0xFF00E5FF : 0xFF888888;
@@ -268,66 +337,97 @@ void HUD::drawBriefcaseStatus(uint32_t* screenBuffer, const Player& player) {
 
 void HUD::drawSurvivalBars(uint32_t* screenBuffer, const Player& player, int mutantsKilled) {
     const int s = (m_screenWidth >= 1000) ? 2 : 1;
-    int panelW = 172 * s;
-    int panelH = 52 * s;
-    int panelX = m_screenWidth - panelW - 10 * s;
-    int panelY = m_screenHeight - panelH - 10 * s;
 
-    drawRect(screenBuffer, panelX, panelY, panelW, panelH, 0xD80A0E14);
-    drawBorder(screenBuffer, panelX, panelY, panelW, panelH, 0xFF2A3644);
-    drawBorder(screenBuffer, panelX + 1 * s, panelY + 1 * s, panelW - 2 * s, panelH - 2 * s, 0xFF121A22);
+    // Dimensões fiéis ao layout de referência (media_1793306523730_4b704918.png)
+    int panelW = 290 * s;
+    int panelH = 60 * s;
+    int panelMargin = 10 * s;
+    int panelX = m_screenWidth - panelW - panelMargin;
+    int panelY = m_screenHeight - panelH - panelMargin;
 
-    int barStartX = panelX + 24 * s;
-    int barW = 84 * s;
-    int barH = 6 * s;
+    // Chassi Metálico Estilo Painel Tático com borda dupla
+    drawRect(screenBuffer, panelX, panelY, panelW, panelH, 0xEB0A0E10);
+    drawBorder(screenBuffer, panelX, panelY, panelW, panelH, 0xFF4D4032);
+    drawBorder(screenBuffer, panelX + 1 * s, panelY + 1 * s, panelW - 2 * s, panelH - 2 * s, 0xFF1F2922);
 
-    // 1. Barra de Vida (HP)
-    int hpY = panelY + 6 * s;
-    drawText(screenBuffer, panelX + 6 * s, hpY + 1 * s, "HP", 0xFFE0E0E0, s);
-    drawRect(screenBuffer, barStartX, hpY, barW, barH, 0xFF141820);
+    int barStartX = panelX + 30 * s;
+    int barW = 110 * s;
+    int barH = 9 * s;
+
+    // 1. Barra de Vida (HP): Vermelha contínua com gradiente suave
+    int hpY = panelY + 7 * s;
+    drawText(screenBuffer, panelX + 10 * s, hpY + 1 * s, "HP", 0xFFB6834E, s);
+    drawRect(screenBuffer, barStartX, hpY, barW, barH, 0xFF181515);
 
     float hpPct = std::clamp(player.getHealth() / 100.0f, 0.0f, 1.0f);
-    int filledW = static_cast<int>(barW * hpPct);
-    uint32_t hpColor = (hpPct > 0.4f) ? 0xFFE04434 : 0xFFFF2020;
-    drawRect(screenBuffer, barStartX, hpY, filledW, barH, hpColor);
+    int filledHpW = static_cast<int>(barW * hpPct);
+    uint32_t hpColor = (hpPct > 0.35f) ? 0xFFC63E32 : 0xFFFF2020;
+    drawRect(screenBuffer, barStartX, hpY, filledHpW, barH, hpColor);
+    drawBorder(screenBuffer, barStartX, hpY, barW, barH, 0xFF2A2020);
 
-    for (int seg = 1; seg < 10; ++seg) {
-        int segX = barStartX + (barW * seg) / 10;
-        drawRect(screenBuffer, segX, hpY, 1 * s, barH, 0xFF0A0E14);
-    }
-    drawBorder(screenBuffer, barStartX, hpY, barW, barH, 0xFF4A5565);
+    // Texto RADS à direita da linha de HP em Vermelho/Alaranjado
+    drawText(screenBuffer, barStartX + barW + 12 * s, hpY + 1 * s, "RADS", 0xFFD85040, s);
+    drawText(screenBuffer, barStartX + barW + 52 * s, hpY + 1 * s, "1", 0xFFD85040, s);
 
-    drawText(screenBuffer, barStartX + barW + 6 * s, hpY + 1 * s, "RADS  1", 0xFFD47050, s);
-
-    // 2. Barra de Stamina (ST)
-    int staY = hpY + barH + 5 * s;
-    drawText(screenBuffer, panelX + 6 * s, staY + 1 * s, "ST", 0xFFE0E0E0, s);
-    drawRect(screenBuffer, barStartX, staY, barW, barH, 0xFF141820);
+    // 2. Barra de Stamina (ST): Verde contínua
+    int staY = hpY + barH + 6 * s;
+    drawText(screenBuffer, panelX + 10 * s, staY + 1 * s, "ST", 0xFF718A62, s);
+    drawRect(screenBuffer, barStartX, staY, barW, barH, 0xFF121B14);
 
     float staPct = std::clamp(player.getStamina() / 100.0f, 0.0f, 1.0f);
-    int staW = static_cast<int>(barW * staPct);
-    drawRect(screenBuffer, barStartX, staY, staW, barH, 0xFF4AE066);
-    drawBorder(screenBuffer, barStartX, staY, barW, barH, 0xFF35553E);
+    int filledStaW = static_cast<int>(barW * staPct);
+    drawRect(screenBuffer, barStartX, staY, filledStaW, barH, 0xFF5F993D);
+    drawBorder(screenBuffer, barStartX, staY, barW, barH, 0xFF243628);
 
-    drawText(screenBuffer, barStartX + barW + 6 * s, staY + 1 * s, "AMMO 30X", 0xFFD8B040, s);
+    // Texto AMMO 30x em Verde Tático
+    drawText(screenBuffer, barStartX + barW + 12 * s, staY + 1 * s, "AMMO 30X", 0xFF749462, s);
 
-    // 3. Indicador de Armadura / Kills
-    int radY = staY + barH + 5 * s;
-    drawText(screenBuffer, panelX + 6 * s, radY + 1 * s, "AH", 0xFF8A9A8A, s);
-    drawRect(screenBuffer, barStartX, radY, barW, barH, 0xFF141820);
-    drawRect(screenBuffer, barStartX, radY, barW * 3 / 4, barH, 0xFF8A7840);
-    drawBorder(screenBuffer, barStartX, radY, barW, barH, 0xFF4A4530);
+    // 3. Barra de Armadura (AH): Segmentada verticalmente em traços amarelos / dourados
+    int ahY = staY + barH + 6 * s;
+    drawText(screenBuffer, panelX + 10 * s, ahY + 1 * s, "AH", 0xFFA08656, s);
+    drawRect(screenBuffer, barStartX, ahY, barW, barH, 0xFF1A1710);
 
-    char killBuf[24];
-    std::snprintf(killBuf, sizeof(killBuf), "KILLS %d", mutantsKilled);
-    drawText(screenBuffer, barStartX + barW + 6 * s, radY + 1 * s, killBuf, 0xFFD45040, s);
+    constexpr int AH_TOTAL_TICKS = 18;
+    int activeTicks = 12; // Valor de integridade de blindagem
+    int tickW = 4 * s;
+    int tickGap = 2 * s;
+    for (int t = 0; t < AH_TOTAL_TICKS; ++t) {
+        int tx = barStartX + 2 * s + t * (tickW + tickGap);
+        if (tx + tickW > barStartX + barW) break;
+        uint32_t tCol = (t < activeTicks) ? 0xFFB39D5A : 0xFF2A2416;
+        drawRect(screenBuffer, tx, ahY + 1 * s, tickW, barH - 2 * s, tCol);
+    }
+    drawBorder(screenBuffer, barStartX, ahY, barW, barH, 0xFF3D3422);
 
-    int ammoGaugeX = panelX + panelW - 10 * s;
-    int ammoGaugeY = panelY + 6 * s;
-    int ammoGaugeH = panelH - 12 * s;
-    drawRect(screenBuffer, ammoGaugeX, ammoGaugeY, 4 * s, ammoGaugeH, 0xFF242010);
-    drawRect(screenBuffer, ammoGaugeX, ammoGaugeY + 4 * s, 4 * s, ammoGaugeH - 4 * s, 0xFFD8B030);
-    drawBorder(screenBuffer, ammoGaugeX, ammoGaugeY, 4 * s, ammoGaugeH, 0xFF554820);
+    // Texto RADS 3 / KILLS em Âmbar
+    drawText(screenBuffer, barStartX + barW + 12 * s, ahY + 1 * s, "RADS", 0xFFC1A25C, s);
+    drawText(screenBuffer, barStartX + barW + 52 * s, ahY + 1 * s, "3", 0xFFC1A25C, s);
+
+    // 4. Medidores Verticais no canto direito do painel
+    // Medidor 1: Barra de Nível Amarela/Dourada com segmentos
+    int gauge1X = panelX + panelW - 40 * s;
+    int gaugeY = panelY + 7 * s;
+    int gaugeW = 11 * s;
+    int gaugeH = 46 * s;
+
+    drawRect(screenBuffer, gauge1X, gaugeY, gaugeW, gaugeH, 0xFF0D120E);
+    drawBorder(screenBuffer, gauge1X, gaugeY, gaugeW, gaugeH, 0xFF2F3D2C);
+
+    // Preenchimento de 9 segmentos amarelos
+    constexpr int GAUGE_SEGS = 12;
+    int activeSegs = 7;
+    int segH = 2 * s;
+    int segGap = 1 * s;
+    for (int gs = 0; gs < activeSegs; ++gs) {
+        int sy = gaugeY + gaugeH - 4 * s - (gs + 1) * (segH + segGap);
+        drawRect(screenBuffer, gauge1X + 2 * s, sy, gaugeW - 4 * s, segH, 0xFFE2AC2C);
+    }
+
+    // Medidor 2: Barra vertical fina com ícone de biohazard/símbolo na base
+    int gauge2X = panelX + panelW - 22 * s;
+    drawRect(screenBuffer, gauge2X, gaugeY, gaugeW, gaugeH, 0xFF0D120E);
+    drawBorder(screenBuffer, gauge2X, gaugeY, gaugeW, gaugeH, 0xFF2F3D2C);
+    drawRect(screenBuffer, gauge2X + 3 * s, gaugeY + gaugeH - 10 * s, gaugeW - 6 * s, 6 * s, 0xFF5D4E3A);
 }
 
 void HUD::drawCrosshair(uint32_t* screenBuffer, int mouseX, int mouseY, bool isAttacking) {
@@ -486,45 +586,79 @@ bool HUD::renderDeathScreen(
         drawBorder(screenBuffer, crtX, crtY, crtW, crtH, 0xFF4A6850);
     }
 
-    // Estatísticas dinâmicas escritas dentro do visor CRT
+    // Estatísticas dinâmicas escritas dentro do visor CRT com alinhamento tabular preciso
     std::string header = "K.I.A. - OPERADOR ABATIDO NA ZONA";
-    drawText(screenBuffer, crtX + 36 * s, crtY + 26 * s, header, 0xFFFF4444, s);
+    int headerW = static_cast<int>(header.length()) * 6 * s;
+    drawText(screenBuffer, crtX + (crtW - headerW) / 2, crtY + 22 * s, header, 0xFFFF3333, s);
 
     int mins = static_cast<int>(timeSurvived) / 60;
     int secs = static_cast<int>(timeSurvived) % 60;
-    char line1[64], line2[64], line3[64], line4[64];
-    std::snprintf(line1, sizeof(line1), "TIME SURVIVED:      %02d:%02d", mins, secs);
-    std::snprintf(line2, sizeof(line2), "MUTANTS KILLED:     %d", mutantsKilled);
-    std::snprintf(line3, sizeof(line3), "DATA POINTS EARNED: +%d PTS", dataPoints);
-    std::snprintf(line4, sizeof(line4), "SAFE POCKET SAVED:  %d ITEMS", briefcase.getSafePocketItemCount());
 
-    drawText(screenBuffer, crtX + 36 * s, crtY + 46 * s, line1, 0xFF88FF99, s);
-    drawText(screenBuffer, crtX + 36 * s, crtY + 62 * s, line2, 0xFF88FF99, s);
-    drawText(screenBuffer, crtX + 36 * s, crtY + 78 * s, line3, 0xFFFFD866, s);
-    drawText(screenBuffer, crtX + 36 * s, crtY + 94 * s, line4, 0xFF66E0FF, s);
+    char val1[16];
+    std::snprintf(val1, sizeof(val1), "%02d:%02d", mins, secs);
+    std::string val2 = std::to_string(mutantsKilled);
+    std::string val3 = "+" + std::to_string(dataPoints) + " PTS";
+    int savedCount = briefcase.getSafePocketItemCount();
+    std::string val4 = std::to_string(savedCount) + " ITEMS";
 
-    // Ícones dos itens salvos no Safe Pocket 2x2
-    int iconX = crtX + 36 * s;
+    int maxValChars = static_cast<int>(std::max({
+        std::strlen(val1), val2.length(), val3.length(), val4.length()
+    }));
+
+    // O rótulo mais longo é "DATA POINTS EARNED:" com 19 caracteres
+    const int labelChars = 19;
+    const int gapChars = 4; // Espaçamento harmônico entre o rótulo e o valor
+    int totalTableChars = labelChars + gapChars + maxValChars;
+    int tableW = totalTableChars * 6 * s;
+
+    // Centraliza o bloco tabular horizontalmente com precisão simétrica dentro do visor CRT (crtW)
+    int colLabelX = crtX + (crtW - tableW) / 2;
+    int colValX   = colLabelX + (labelChars + gapChars) * 6 * s;
+
+    // Linha 1: Tempo Sobrevivido
+    int row1Y = crtY + 44 * s;
+    drawText(screenBuffer, colLabelX, row1Y, "TIME SURVIVED:", 0xFF749462, s);
+    drawText(screenBuffer, colValX, row1Y, val1, 0xFF98E8AA, s);
+
+    // Linha 2: Mutantes Eliminados
+    int row2Y = crtY + 60 * s;
+    drawText(screenBuffer, colLabelX, row2Y, "MUTANTS KILLED:", 0xFF749462, s);
+    drawText(screenBuffer, colValX, row2Y, val2, 0xFF98E8AA, s);
+
+    // Linha 3: Pontos de Dados Conquistados
+    int row3Y = crtY + 76 * s;
+    drawText(screenBuffer, colLabelX, row3Y, "DATA POINTS EARNED:", 0xFFB39D5A, s);
+    drawText(screenBuffer, colValX, row3Y, val3, 0xFFFFD466, s);
+
+    // Linha 4: Itens Salvos no Bolso Blindado
+    int row4Y = crtY + 92 * s;
+    drawText(screenBuffer, colLabelX, row4Y, "SAFE POCKET SAVED:", 0xFF4EB8D4, s);
+    drawText(screenBuffer, colValX, row4Y, val4, 0xFF66E0FF, s);
+
+    // Ícones dos itens salvos no Safe Pocket 2x2 com moldura e sprite real alinhados à tabela
+    int iconX = colLabelX;
     int iconY = crtY + 110 * s;
+    int iconSlotSize = 24 * s;
     for (const auto& item : briefcase.getItems()) {
         if (!item.inSafePocket) continue;
-        drawRect(screenBuffer, iconX, iconY, 22 * s, 22 * s, 0xFF18241C);
+        drawRect(screenBuffer, iconX, iconY, iconSlotSize, iconSlotSize, 0xFF142018);
         if (uiBriefcaseAtlas && uiBriefcaseAtlas->isLoaded()) {
+            Engine::SpriteRect spriteRect = briefcase.getSpriteForItemDef(item.def.id, item.def.category, item.def.element);
             uiBriefcaseAtlas->drawSprite(
                 screenBuffer, m_screenWidth, m_screenHeight,
-                Engine::AtlasCoords::ITEM_ART_COMPASS,
-                iconX + 2 * s, iconY + 2 * s, 18 * s, 18 * s, 1.1f
+                spriteRect,
+                iconX + 2 * s, iconY + 2 * s, iconSlotSize - 4 * s, iconSlotSize - 4 * s, 1.25f
             );
         }
-        drawBorder(screenBuffer, iconX, iconY, 22 * s, 22 * s, 0xFFFFCC44);
-        iconX += 26 * s;
+        drawBorder(screenBuffer, iconX, iconY, iconSlotSize, iconSlotSize, 0xFFFFCC44);
+        iconX += iconSlotSize + 6 * s;
     }
 
     // 3. Botão Inferior Recortado para Regressar ao Bunker
-    int btnW = 220 * s;
-    int btnH = 54 * s;
+    int btnW = 240 * s;
+    int btnH = 50 * s;
     int btnX = (m_screenWidth - btnW) / 2;
-    int btnY = m_screenHeight - 78 * s;
+    int btnY = m_screenHeight - 72 * s;
 
     bool hovered = (mouseX >= btnX && mouseX < btnX + btnW &&
                     mouseY >= btnY && mouseY < btnY + btnH);
@@ -540,9 +674,11 @@ bool HUD::renderDeathScreen(
         drawBorder(screenBuffer, btnX, btnY, btnW, btnH, 0xFF50FF64);
     }
 
-    std::string btnLabel = "REGRESSAR AO BUNKER [ENTER / CLIQUE]";
-    int lblW = static_cast<int>(btnLabel.length()) * 4 * s;
-    drawText(screenBuffer, (m_screenWidth - lblW) / 2, btnY + 24 * s, btnLabel, hovered ? 0xFFFFFFFF : 0xFF80FF98, s);
+    std::string btnLabel = "REGRESSAR [ENTER / CLIQUE]";
+    int lblW = static_cast<int>(btnLabel.length()) * 6 * s; // 6px por caractere na nova fonte 5x7!
+    int lblX = (m_screenWidth - lblW) / 2;
+    int lblY = btnY + (btnH - 7 * s) / 2; // Perfeitamente centralizado na vertical
+    drawText(screenBuffer, lblX, lblY, btnLabel, hovered ? 0xFFFFFFFF : 0xFF78FF96, s);
 
     drawCrosshair(screenBuffer, mouseX, mouseY, false);
     return hovered;
@@ -560,27 +696,66 @@ int HUD::renderBunkerHub(
     int mouseY,
     float time
 ) {
-    const int s = (m_screenWidth >= 1000) ? 2 : 1;
+    const int s = (m_screenWidth >= 1200) ? 2 : 1;
 
-    // 1. Renderiza a imagem de fundo completa do Bunker (screen_bunker_hub.png)
+    // 1. Renderiza a imagem de fundo completa do Bunker (screen_bunker_hub.png) sem cortes
     if (bgBunkerAtlas.isLoaded()) {
         bgBunkerAtlas.drawFullScreen(screenBuffer, m_screenWidth, m_screenHeight, 1.0f);
     } else {
         drawRect(screenBuffer, 0, 0, m_screenWidth, m_screenHeight, 0xFF101416);
     }
 
-    // 2. Atualiza os indicadores dinâmicos no topo (CREDITS, SCRAP, POWER)
-    drawRect(screenBuffer, 232 * s, 6 * s, 110 * s, 18 * s, 0xFF161A18);
-    char credBuf[32];
-    std::snprintf(credBuf, sizeof(credBuf), "CREDITS: %d", bunker.credits);
-    drawText(screenBuffer, 238 * s, 12 * s, credBuf, 0xFFFFCC55, s);
+    // 2. Atualiza os indicadores dinâmicos no topo dentro das 4 caixas dedicadas da arte original (screen_bunker_hub.png)
+    int topY = static_cast<int>(m_screenHeight * 0.038f);
 
-    drawRect(screenBuffer, 358 * s, 6 * s, 96 * s, 18 * s, 0xFF161A18);
+    // Caixa 1 (Esquerda): Título da Base
+    int titleX = static_cast<int>(m_screenWidth * 0.052f);
+    drawText(screenBuffer, titleX, topY, "BUNKER BASE DE OPERATIONS", 0xFF98E8AA, s);
+
+    // Caixa 2 (Centro-Esquerda): Moeda / Créditos (ao lado do ícone da moeda na arte)
+    int credX = static_cast<int>(m_screenWidth * 0.395f);
+    char credBuf[32];
+    if (bunker.credits >= 1000) {
+        std::snprintf(credBuf, sizeof(credBuf), "CURRENCY: %d,%03d", bunker.credits / 1000, bunker.credits % 1000);
+    } else {
+        std::snprintf(credBuf, sizeof(credBuf), "CURRENCY: %d", bunker.credits);
+    }
+    drawText(screenBuffer, credX, topY, credBuf, 0xFFFFCC55, s);
+
+    // Caixa 3 (Centro-Direita): Sucata / Scrap (ao lado do ícone de engrenagem na arte)
+    int scrapX = static_cast<int>(m_screenWidth * 0.595f);
     char scrapBuf[32];
     std::snprintf(scrapBuf, sizeof(scrapBuf), "SCRAP: %d", bunker.scrap);
-    drawText(screenBuffer, 364 * s, 12 * s, scrapBuf, 0xFFD8E0D8, s);
+    drawText(screenBuffer, scrapX, topY, scrapBuf, 0xFFD8E0D8, s);
 
-    // 3. Definição dos 5 Hotspots Interativos das Estações do Bunker
+    // Caixa 4 (Direita): Energia / Power (ao lado do ícone de raio na arte) + Barra segmentada verde
+    int powerX = static_cast<int>(m_screenWidth * 0.768f);
+    char powerBuf[32];
+    std::snprintf(powerBuf, sizeof(powerBuf), "POWER: %d%%", bunker.powerPct);
+    drawText(screenBuffer, powerX, topY, powerBuf, 0xFFFFCC55, s);
+
+    // Barra de segmentos verdes de energia à direita do texto POWER
+    int barStartX = powerX + static_cast<int>(std::strlen(powerBuf)) * 6 * s + 8 * s;
+    int pwrBarY = topY + 1 * s;
+    int barH = 7 * s;
+    int totalSegments = 16;
+    int filledSegments = std::clamp((bunker.powerPct * totalSegments) / 100, 0, totalSegments);
+    int segW = 3 * s;
+    int segGap = 1 * s;
+
+    for (int seg = 0; seg < totalSegments; ++seg) {
+        int sx = barStartX + seg * (segW + segGap);
+        uint32_t segColor = (seg < filledSegments) ? 0xFF33EE55 : 0xFF142418;
+        for (int py = pwrBarY; py < pwrBarY + barH; ++py) {
+            if (py < 0 || py >= m_screenHeight) continue;
+            for (int px = sx; px < sx + segW; ++px) {
+                if (px < 0 || px >= m_screenWidth) continue;
+                screenBuffer[py * m_screenWidth + px] = segColor;
+            }
+        }
+    }
+
+    // 3. Definição dos 5 Hotspots Interativos das Estações do Bunker alinhados à arte original
     struct StationHotspot {
         int id;
         int x, y, w, h;
@@ -589,11 +764,11 @@ int HUD::renderBunkerHub(
     };
 
     const StationHotspot stations[5] = {
-        { 1,  18 * s, 135 * s, 130 * s, 145 * s, "[1] INFIRMARY",    "CURAR 100% HP & SANGRAMENTO (-25 CREDITS)" },
-        { 2, 168 * s, 180 * s, 115 * s, 130 * s, "[2] GENERATOR",    "REABASTECER GERADOR & +30 MUNICAO (-15 SCRAP)" },
-        { 3, 290 * s, 160 * s, 108 * s, 140 * s, "[3] WORKBENCH",    "ABRIR MALETA 6X4 & FUNDIR SINERGIAS [TAB]" },
-        { 4, 404 * s, 175 * s,  88 * s, 145 * s, "[4] TERMINAL",     "INFILTRAR NA ZONA ( INICIAR MISSAO! )" },
-        { 5, 500 * s, 130 * s, 128 * s, 165 * s, "[5] BLACK MARKET", "VENDER ARTEFATO (+250 CREDITS) / COMPRAR ORBE" }
+        { 1, static_cast<int>(m_screenWidth * 0.02f), static_cast<int>(m_screenHeight * 0.38f), static_cast<int>(m_screenWidth * 0.22f), static_cast<int>(m_screenHeight * 0.48f), "[1] INFIRMARY",    "CURAR 100% HP & SANGRAMENTO (-25 CREDITS)" },
+        { 2, static_cast<int>(m_screenWidth * 0.26f), static_cast<int>(m_screenHeight * 0.46f), static_cast<int>(m_screenWidth * 0.18f), static_cast<int>(m_screenHeight * 0.40f), "[2] GENERATOR",    "REABASTECER GERADOR & +30 MUNICAO (-15 SCRAP)" },
+        { 3, static_cast<int>(m_screenWidth * 0.46f), static_cast<int>(m_screenHeight * 0.42f), static_cast<int>(m_screenWidth * 0.15f), static_cast<int>(m_screenHeight * 0.40f), "[3] WORKBENCH",    "ABRIR MALETA 8X4 & FUNDIR SINERGIAS [TAB]" },
+        { 4, static_cast<int>(m_screenWidth * 0.62f), static_cast<int>(m_screenHeight * 0.46f), static_cast<int>(m_screenWidth * 0.13f), static_cast<int>(m_screenHeight * 0.40f), "[4] TERMINAL",     "INFILTRAR NA ZONA ( INICIAR MISSAO! )" },
+        { 5, static_cast<int>(m_screenWidth * 0.76f), static_cast<int>(m_screenHeight * 0.35f), static_cast<int>(m_screenWidth * 0.22f), static_cast<int>(m_screenHeight * 0.50f), "[5] BLACK MARKET", "VENDER ARTEFATO (+250 CREDITS) / COMPRAR ORBE" }
     };
 
     int hoveredStation = 0;
@@ -607,11 +782,15 @@ int HUD::renderBunkerHub(
             hoveredStation = st.id;
             drawBorder(screenBuffer, st.x, st.y, st.w, st.h, neonGreen);
             drawBorder(screenBuffer, st.x + 1 * s, st.y + 1 * s, st.w - 2 * s, st.h - 2 * s, 0xFF50FF64);
-            drawRect(screenBuffer, st.x, st.y - 16 * s, st.w, 14 * s, 0xE60B1810);
-            drawBorder(screenBuffer, st.x, st.y - 16 * s, st.w, 14 * s, 0xFF50FF64);
-            drawText(screenBuffer, st.x + 4 * s, st.y - 12 * s, st.title, 0xFF78FF96, s);
+            drawRect(screenBuffer, st.x, st.y - 18 * s, st.w, 16 * s, 0xE60B1810);
+            drawBorder(screenBuffer, st.x, st.y - 18 * s, st.w, 16 * s, 0xFF50FF64);
+            drawText(screenBuffer, st.x + 4 * s, st.y - 14 * s, st.title, 0xFF78FF96, s);
         } else {
-            drawBorder(screenBuffer, st.x, st.y, st.w, st.h, 0x66284830);
+            // Etiquetas visíveis permanentes com títulos das estações do Bunker!
+            drawBorder(screenBuffer, st.x, st.y, st.w, st.h, 0x88285838);
+            drawRect(screenBuffer, st.x, st.y - 14 * s, st.w, 13 * s, 0xCC09120C);
+            drawBorder(screenBuffer, st.x, st.y - 14 * s, st.w, 13 * s, 0xFF2F5438);
+            drawText(screenBuffer, st.x + 4 * s, st.y - 11 * s, st.title, 0xFF98E8AA, s);
         }
     }
 
@@ -637,13 +816,128 @@ int HUD::renderBunkerHub(
     char bottomLine[160];
     std::snprintf(
         bottomLine, sizeof(bottomLine),
-        "PROXIMA MISSAO: %s | HP: %d%% | [ENTER] INFILTRAR | [1-5] ESTACOES",
+        "PROXIMA MISSAO: %s | HP: %d%% | [ENTER] INFILTRAR | [O] OPCOES DE VIDEO",
         curSector, static_cast<int>(player.getHealth())
     );
     drawText(screenBuffer, 20 * s, barY + 16 * s, bottomLine, 0xFFFFD466, s);
 
     drawCrosshair(screenBuffer, mouseX, mouseY, false);
     return hoveredStation;
+}
+
+// =============================================================================
+// MENU EXCLUSIVO DE RESOLUÇÃO (720p / Steam Deck 1280x800 / 1080p)
+// =============================================================================
+int HUD::renderVideoMenu(
+    uint32_t* screenBuffer,
+    int mouseX,
+    int mouseY,
+    float fps,
+    bool isFullscreen
+) {
+    if (!m_videoMenuOpen) return 0;
+
+    const int s = (m_screenWidth >= 1600) ? 2 : 1;
+    auto scX = [this](int v) { return (v * m_screenWidth) / 1280; };
+    auto scY = [this](int v) { return (v * m_screenHeight) / 800; };
+
+    int selectedAction = 0;
+
+    // Fundo escurecido semi-transparente
+    drawRect(screenBuffer, 0, 0, m_screenWidth, m_screenHeight, 0xCC050A08);
+
+    // Painel Central Estilo Terminal Tático
+    int panelW = scX(560);
+    int panelH = scY(420);
+    int panelX = (m_screenWidth - panelW) / 2;
+    int panelY = (m_screenHeight - panelH) / 2;
+
+    drawRect(screenBuffer, panelX, panelY, panelW, panelH, 0xF60E1812);
+    drawBorder(screenBuffer, panelX, panelY, panelW, panelH, 0xFF50FF64);
+    drawBorder(screenBuffer, panelX + 2 * s, panelY + 2 * s, panelW - 4 * s, panelH - 4 * s, 0xFF1C3A24);
+
+    // Cabeçalho
+    int headH = scY(32);
+    drawRect(screenBuffer, panelX + 4 * s, panelY + 4 * s, panelW - 8 * s, headH, 0xFF14281A);
+    drawBorder(screenBuffer, panelX + 4 * s, panelY + 4 * s, panelW - 8 * s, headH, 0xFF386A44);
+    drawText(screenBuffer, panelX + scX(16), panelY + scY(12), "CONFIGURACOES DE RESOLUCAO & TELA", 0xFF78FF96, s);
+
+    // Telemetria da tela ativa
+    char curInfo[128];
+    std::snprintf(
+        curInfo, sizeof(curInfo),
+        "RESOLUCAO ATUAL: %dX%d | TAXA: %.0f FPS | MODO: %s",
+        m_screenWidth, m_screenHeight, fps, isFullscreen ? "TELA CHEIA" : "JANELA"
+    );
+    drawText(screenBuffer, panelX + scX(18), panelY + scY(46), curInfo, 0xFFFFCC55, s);
+
+    // Estrutura dos 3 Padrões Oficiais
+    struct VideoOpt {
+        int id;
+        int w;
+        int h;
+        const char* title;
+        const char* desc;
+    };
+
+    const VideoOpt opts[3] = {
+        { 1, 1280, 720,  "[1] 720P PADRAO (1280 X 720 - 16:9)",        "PERFORMANCE ELEVADA / COMPATIBILIDADE UNIVERSAL" },
+        { 2, 1280, 800,  "[2] STEAM DECK NATIVO (1280 X 800 - 16:10)", "RESOLUCAO NATIVA DO STEAM DECK / TELAS 16:10" },
+        { 3, 1920, 1080, "[3] 1080P FULL HD (1920 X 1080 - 16:9)",     "RESOLUCAO MAXIMA DE ALTA DEFINICAO / MONITORES FHD" }
+    };
+
+    int cardStartY = panelY + scY(76);
+    int cardW = panelW - scX(32);
+    int cardH = scY(62);
+    int cardGap = scY(10);
+
+    for (int i = 0; i < 3; ++i) {
+        int cx = panelX + scX(16);
+        int cy = cardStartY + i * (cardH + cardGap);
+
+        bool isCurrent = (m_screenWidth == opts[i].w && m_screenHeight == opts[i].h);
+        bool isHover = (mouseX >= cx && mouseX < cx + cardW && mouseY >= cy && mouseY < cy + cardH);
+
+        if (isHover) {
+            selectedAction = opts[i].id;
+        }
+
+        uint32_t bg = isCurrent ? 0xFF1C4226 : (isHover ? 0xFF183022 : 0xFF101C14);
+        uint32_t border = isCurrent ? 0xFF50FF64 : (isHover ? 0xFF4DEEEA : 0xFF2A4A32);
+
+        drawRect(screenBuffer, cx, cy, cardW, cardH, bg);
+        drawBorder(screenBuffer, cx, cy, cardW, cardH, border);
+
+        std::string tag = isCurrent ? ">> ATIVO: " : "   ";
+        drawText(screenBuffer, cx + scX(12), cy + scY(12), tag + opts[i].title, isCurrent ? 0xFF50FF64 : 0xFFE0F4E8, s);
+        drawText(screenBuffer, cx + scX(12), cy + scY(34), opts[i].desc, 0xFF88C89C, s);
+    }
+
+    // Botões inferiores: Alternar Tela Cheia [F11] e Fechar Menu [ESC / O]
+    int btnY = panelY + panelH - scY(46);
+    int btnW1 = scX(255);
+    int btnW2 = panelW - scX(40) - btnW1;
+    int btnX1 = panelX + scX(16);
+    int btnX2 = btnX1 + btnW1 + scX(8);
+    int btnH = scY(32);
+
+    bool hovFs = (mouseX >= btnX1 && mouseX < btnX1 + btnW1 && mouseY >= btnY && mouseY < btnY + btnH);
+    bool hovClose = (mouseX >= btnX2 && mouseX < btnX2 + btnW2 && mouseY >= btnY && mouseY < btnY + btnH);
+
+    if (hovFs) selectedAction = 4;
+    if (hovClose) selectedAction = 5;
+
+    drawRect(screenBuffer, btnX1, btnY, btnW1, btnH, hovFs ? 0xFF20444C : 0xFF12262E);
+    drawBorder(screenBuffer, btnX1, btnY, btnW1, btnH, hovFs ? 0xFF4DEEEA : 0xFF2A525E);
+    std::string fsText = isFullscreen ? "[F11] TELA CHEIA (ATIVA)" : "[F11] MODO JANELA";
+    drawText(screenBuffer, btnX1 + scX(12), btnY + scY(10), fsText, 0xFF88E8FF, s);
+
+    drawRect(screenBuffer, btnX2, btnY, btnW2, btnH, hovClose ? 0xFF502222 : 0xFF281212);
+    drawBorder(screenBuffer, btnX2, btnY, btnW2, btnH, hovClose ? 0xFFFF5555 : 0xFF662A2A);
+    drawText(screenBuffer, btnX2 + scX(12), btnY + scY(10), "FECHAR MENU [O / ESC]", 0xFFFFCCCC, s);
+
+    drawCrosshair(screenBuffer, mouseX, mouseY, false);
+    return selectedAction;
 }
 
 } // namespace DayDoom::Game::UI

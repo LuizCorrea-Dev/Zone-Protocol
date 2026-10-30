@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 3.16)
-project(ZoneProtocol VERSION 0.1.2 LANGUAGES CXX C RC)
+project(ZoneProtocol VERSION 0.1.5 LANGUAGES CXX C RC)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Resolução canônica interna e metadados oficiais do Zone Protocol v0.1.2
+# Resolução canônica interna e metadados oficiais do Zone Protocol v0.1.5
 add_compile_definitions(
     SCREEN_WIDTH=640
     SCREEN_HEIGHT=400
-    WINDOW_TITLE="ZONE PROTOCOL [v0.1.2] - Roguelike Tatico Top-Down 2D"
-    ZONE_PROTOCOL_VERSION="v0.1.2"
+    WINDOW_TITLE="ZONE PROTOCOL [v0.1.5] - Roguelike Tatico Top-Down 2D"
+    ZONE_PROTOCOL_VERSION="v0.1.5"
 )
 
 # Inclusão de diretórios de código
@@ -56,6 +56,7 @@ endif()
 # Arquivos de código-fonte
 file(GLOB_RECURSE SOURCES
     "src/*.cpp"
+    "src/*.c"
     "src/*.hpp"
     "src/*.h"
 )
@@ -84,15 +85,15 @@ target_link_libraries(ZoneProtocol PRIVATE ${SDL2_LIBRARIES})
 add_custom_command(TARGET ZoneProtocol POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "$<TARGET_FILE:ZoneProtocol>"
-    "$<TARGET_FILE_DIR:ZoneProtocol>/ZoneProtocol_v012.exe"
-    COMMENT "Gerando executavel versionado ZoneProtocol_v012.exe"
+    "$<TARGET_FILE_DIR:ZoneProtocol>/ZoneProtocol_v015.exe"
+    COMMENT "Gerando executavel versionado ZoneProtocol_v015.exe"
 )
 
 add_custom_command(TARGET ZoneProtocol POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "$<TARGET_FILE:ZoneProtocol>"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ZoneProtocol_v012.exe"
-    COMMENT "Gerando executavel versionado ZoneProtocol_v012.exe na raiz"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ZoneProtocol_v015.exe"
+    COMMENT "Gerando executavel versionado ZoneProtocol_v015.exe na raiz"
 )
 
 add_custom_command(TARGET ZoneProtocol POST_BUILD
